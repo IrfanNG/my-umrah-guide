@@ -4,16 +4,44 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../geofence_provider.dart';
 
-class TawafSimulatorView extends StatelessWidget {
+class TawafSimulatorView extends StatefulWidget {
   const TawafSimulatorView({super.key});
+
+  @override
+  State<TawafSimulatorView> createState() => _TawafSimulatorViewState();
+}
+
+class _TawafSimulatorViewState extends State<TawafSimulatorView> {
+  final MapController _mapController = MapController();
+  bool _isMapReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<GeofenceProvider>().startTracking();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final geofence = context.watch<GeofenceProvider>();
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    // Mecca Coordinates
-    const meccaCenter = LatLng(21.4225, 39.8262);
+    final userLatLng = geofence.currentPosition != null
+        ? LatLng(geofence.currentPosition!.latitude, geofence.currentPosition!.longitude)
+        : const LatLng(21.4225, 39.8262);
+    
+    final kaabahLatLng = geofence.kaabahPosition != null
+        ? LatLng(geofence.kaabahPosition!.latitude, geofence.kaabahPosition!.longitude)
+        : const LatLng(21.4225, 39.8262);
+
+    // Force follow user if GPS is active
+    if (geofence.currentPosition != null && _isMapReady) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _mapController.move(userLatLng, _mapController.camera.zoom);
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -24,33 +52,44 @@ class TawafSimulatorView extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // Status Banner (Maya's Design)
+          if (geofence.currentPosition == null)
+            Container(
+              padding: const EdgeInsets.all(8),
+              color: Colors.orange.shade100,
+              child: const Row(
+                children: [
+                  Icon(Icons.gps_fixed, size: 16),
+                  SizedBox(width: 8),
+                  Text("Waiting for GPS signal...", style: TextStyle(fontSize: 12)),
+                ],
+              ),
+            ),
           _buildStatusBanner(context, geofence),
-
-          // Lap Counter Display
           _buildLapCounter(context, geofence),
-
-          // Real Map (OpenStreetMap)
           Expanded(
             child: Stack(
               children: [
                 FlutterMap(
+                  mapController: _mapController,
                   options: MapOptions(
-                    initialCenter: meccaCenter,
+                    initialCenter: userLatLng,
                     initialZoom: 18.0,
+                    onMapReady: () {
+                      setState(() {
+                        _isMapReady = true;
+                      });
+                    },
                   ),
                   children: [
                     TileLayer(
                       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.mish.my_umrah_guide',
                     ),
-                    
-                    // Radius Visual (Aura)
                     if (geofence.kaabahPosition != null)
                       CircleLayer(
                         circles: [
                           CircleMarker(
-                            point: meccaCenter, // In real demo, this matches kaabahPosition
+                            point: kaabahLatLng, 
                             color: geofence.status == GeofenceStatus.inside
                                 ? primaryColor.withValues(alpha: 0.1)
                                 : Colors.transparent,
@@ -63,31 +102,57 @@ class TawafSimulatorView extends StatelessWidget {
                           ),
                         ],
                       ),
-
-                    // Marker Layer (User & Kaabah)
                     MarkerLayer(
                       markers: [
-                        // Kaabah Pin
-                        const Marker(
-                          point: meccaCenter,
+                        if (geofence.kaabahPosition != null)
+                          Marker(
+                            point: kaabahLatLng,
+                            width: 40,
+                            height: 40,
+                            child: const Icon(Icons.location_on, color: Colors.black, size: 40),
+                          ),
+                        Marker(
+                          point: userLatLng,
                           width: 40,
                           height: 40,
-                          child: Icon(Icons.location_on, color: Colors.black, size: 40),
+                          child: const Icon(Icons.person_pin_circle, color: Colors.blue, size: 40),
                         ),
-                        // User Location Marker
-                        if (geofence.status == GeofenceStatus.inside)
-                          const Marker(
-                            point: meccaCenter, // In simulation, we center user
-                            width: 20,
-                            height: 20,
-                            child: Icon(Icons.person_pin_circle, color: Colors.blue, size: 30),
-                          ),
                       ],
                     ),
                   ],
                 ),
-
-                // Interaction Controls
+                // Debug LatLng Overlay
+                Positioned(
+                  top: 70,
+                  right: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      geofence.currentPosition != null 
+                        ? "${geofence.currentPosition!.latitude.toStringAsFixed(4)}, ${geofence.currentPosition!.longitude.toStringAsFixed(4)}"
+                        : "No GPS Data",
+                      style: const TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                  ),
+                ),
+                // Locate Me Button
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: FloatingActionButton.small(
+                    onPressed: () {
+                      if (_isMapReady) {
+                        _mapController.move(userLatLng, 18.0);
+                      }
+                    },
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.my_location, color: primaryColor),
+                  ),
+                ),
                 Positioned(
                   bottom: 24,
                   left: 24,
@@ -106,9 +171,7 @@ class TawafSimulatorView extends StatelessWidget {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
-                      
                       const SizedBox(height: 16),
-                      // Dev Simulation Overlay
                       _buildDevOverlay(context),
                     ],
                   ),
@@ -190,10 +253,7 @@ class TawafSimulatorView extends StatelessWidget {
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
-              const Text(
-                " / 7",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
+              const Text(" / 7", style: TextStyle(fontSize: 16, color: Colors.grey)),
             ],
           ),
         ],
@@ -223,18 +283,12 @@ class TawafSimulatorView extends StatelessWidget {
                 onPressed: () => context.read<GeofenceProvider>().simulateStatus(GeofenceStatus.inside),
                 child: const Text('Enter Zone'),
               ),
-              const SizedBox(
-                height: 30,
-                child: VerticalDivider(),
-              ),
+              const SizedBox(height: 30, child: VerticalDivider()),
               TextButton(
                 onPressed: () => context.read<GeofenceProvider>().simulateStatus(GeofenceStatus.outside),
                 child: const Text('Exit Zone'),
               ),
-              const SizedBox(
-                height: 30,
-                child: VerticalDivider(),
-              ),
+              const SizedBox(height: 30, child: VerticalDivider()),
               TextButton(
                 onPressed: () => context.read<GeofenceProvider>().incrementTawafLap(),
                 child: const Text('Next Round'),
