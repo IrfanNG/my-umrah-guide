@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:math' show cos, sqrt, asin;
 import 'package:flutter/foundation.dart'; // To check kIsWeb or platform
+import '../../../core/services/notification_service.dart';
 
 enum GeofenceStatus { initial, inside, outside }
 
@@ -11,12 +12,14 @@ class GeofenceProvider with ChangeNotifier {
   GeofenceStatus _status = GeofenceStatus.initial;
   final double _radius = 10.0; // Default 10 meters
   double _distance = 0.0;
+  int _tawafLapCount = 0;
 
   Position? get currentPosition => _currentPosition;
   Position? get kaabahPosition => _kaabahPosition;
   GeofenceStatus get status => _status;
   double get distance => _distance;
   double get radius => _radius;
+  int get tawafLapCount => _tawafLapCount;
 
   // Set the "Home Kaabah" point manually
   Future<void> setKaabahPoint() async {
@@ -86,6 +89,13 @@ class GeofenceProvider with ChangeNotifier {
       );
 
       if (_distance <= _radius) {
+        if (_status != GeofenceStatus.inside) {
+          NotificationService().showNotification(
+            id: 1,
+            title: "Welcome to Mataf",
+            body: "You are now inside the Kaabah geofence radius.",
+          );
+        }
         _status = GeofenceStatus.inside;
       } else {
         _status = GeofenceStatus.outside;
@@ -97,6 +107,31 @@ class GeofenceProvider with ChangeNotifier {
   // Simulation methods for Demo/FYP
   void simulateStatus(GeofenceStatus newStatus) {
     _status = newStatus;
+    notifyListeners();
+  }
+
+  // Lap Management
+  void incrementTawafLap() {
+    if (_tawafLapCount < 7) {
+      _tawafLapCount++;
+      NotificationService().showNotification(
+        id: 2,
+        title: "Tawaf Update",
+        body: "Round $_tawafLapCount completed!",
+      );
+      if (_tawafLapCount == 7) {
+        NotificationService().showNotification(
+          id: 3,
+          title: "Tawaf Completed",
+          body: "Alhamdulillah, you have finished 7 rounds of Tawaf.",
+        );
+      }
+      notifyListeners();
+    }
+  }
+
+  void resetTawaf() {
+    _tawafLapCount = 0;
     notifyListeners();
   }
 

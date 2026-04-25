@@ -27,6 +27,9 @@ class TawafSimulatorView extends StatelessWidget {
           // Status Banner (Maya's Design)
           _buildStatusBanner(context, geofence),
 
+          // Lap Counter Display
+          _buildLapCounter(context, geofence),
+
           // Real Map (OpenStreetMap)
           Expanded(
             child: Stack(
@@ -163,6 +166,41 @@ class TawafSimulatorView extends StatelessWidget {
     );
   }
 
+  Widget _buildLapCounter(BuildContext context, GeofenceProvider geofence) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            "Tawaf Rounds",
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey),
+          ),
+          Row(
+            children: [
+              Text(
+                "${geofence.tawafLapCount}",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const Text(
+                " / 7",
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDevOverlay(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -192,6 +230,14 @@ class TawafSimulatorView extends StatelessWidget {
               TextButton(
                 onPressed: () => context.read<GeofenceProvider>().simulateStatus(GeofenceStatus.outside),
                 child: const Text('Exit Zone'),
+              ),
+              const SizedBox(
+                height: 30,
+                child: VerticalDivider(),
+              ),
+              TextButton(
+                onPressed: () => context.read<GeofenceProvider>().incrementTawafLap(),
+                child: const Text('Next Round'),
               ),
             ],
           ),

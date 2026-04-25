@@ -5,12 +5,18 @@ import 'features/practice/presentation/pages/splash_view.dart';
 import 'features/practice/presentation/pages/login_guest_view.dart';
 import 'features/practice/presentation/pages/dashboard_view.dart';
 import 'features/practice/presentation/pages/tawaf_simulator_view.dart';
+import 'features/practice/presentation/pages/sai_simulator_view.dart';
+import 'features/practice/presentation/sai_provider.dart';
+import 'core/services/notification_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => GeofenceProvider()),
+        ChangeNotifierProvider(create: (_) => SaiProvider()),
       ],
       child: const MyUmrahGuide(),
     ),
@@ -49,6 +55,7 @@ class MyUmrahGuide extends StatelessWidget {
         '/login': (context) => const LoginGuestView(),
         '/dashboard': (context) => const DashboardView(),
         '/tawaf-simulator': (context) => const TawafSimulatorView(),
+        '/sai-simulator': (context) => const SaiSimulatorView(),
       },
     );
   }

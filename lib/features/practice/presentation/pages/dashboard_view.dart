@@ -50,8 +50,11 @@ class DashboardView extends StatelessWidget {
               title: 'Sa\'i (Safa to Marwa)',
               description: 'Walk between Safa and Marwa 7 times.',
               isCompleted: false,
+              isActive: true,
               isLast: true,
-              onTap: () {},
+              onTap: () {
+                Navigator.pushNamed(context, '/sai-simulator');
+              },
             ),
           ],
         ),
