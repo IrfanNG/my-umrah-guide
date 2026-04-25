@@ -48,6 +48,18 @@ class GeofenceProvider with ChangeNotifier {
     }
   }
 
+  void setManualKaabahPoint(double lat, double lng) {
+    _kaabahPosition = Position(
+      latitude: lat,
+      longitude: lng,
+      timestamp: DateTime.now(),
+      accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0,
+      altitudeAccuracy: 0, headingAccuracy: 0,
+    );
+    _status = GeofenceStatus.inside; // Assume user is inside if they just pinned it nearby
+    notifyListeners();
+  }
+
   void _setDummyKaabah() {
     _kaabahPosition = Position(
       latitude: 21.4225, // Mecca Latitude

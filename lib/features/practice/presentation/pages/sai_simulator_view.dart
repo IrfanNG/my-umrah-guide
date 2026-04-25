@@ -11,9 +11,40 @@ class SaiSimulatorView extends StatefulWidget {
   State<SaiSimulatorView> createState() => _SaiSimulatorViewState();
 }
 
-class _SaiSimulatorViewState extends State<SaiSimulatorView> {
+enum PinMode { none, safa, marwa }
+
+class _SaiSimulatorViewState extends State<SaiSimulatorView> with TickerProviderStateMixin {
   final MapController _mapController = MapController();
   bool _isMapReady = false;
+  PinMode _pinMode = PinMode.none;
+
+  void _animatedMapMove(LatLng destLocation, double destZoom) {
+    final latTween = Tween<double>(
+        begin: _mapController.camera.center.latitude, end: destLocation.latitude);
+    final lngTween = Tween<double>(
+        begin: _mapController.camera.center.longitude, end: destLocation.longitude);
+    final zoomTween = Tween<double>(begin: _mapController.camera.zoom, end: destZoom);
+
+    final controller = AnimationController(
+        duration: const Duration(milliseconds: 500), vsync: this);
+    final animation = CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
+
+    controller.addListener(() {
+      _mapController.move(
+          LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
+          zoomTween.evaluate(animation));
+    });
+
+    animation.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        controller.dispose();
+      } else if (status == AnimationStatus.dismissed) {
+        controller.dispose();
+      }
+    });
+
+    controller.forward();
+  }
 
   @override
   void initState() {
@@ -40,10 +71,13 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView> {
         ? LatLng(sai.marwaPosition!.latitude, sai.marwaPosition!.longitude)
         : const LatLng(21.4248, 39.8267);
 
-    // Auto-follow logic
+    // Smooth follow user if GPS is active
     if (sai.currentPosition != null && _isMapReady) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _mapController.move(userLatLng, _mapController.camera.zoom);
+        double dist = const Distance().as(LengthUnit.Meter, _mapController.camera.center, userLatLng);
+        if (dist > 1.0) {
+           _animatedMapMove(userLatLng, _mapController.camera.zoom);
+        }
       });
     }
 
@@ -68,6 +102,18 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView> {
                 ],
               ),
             ),
+          if (_pinMode != PinMode.none)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              color: primaryColor,
+              child: Center(
+                child: Text(
+                  "TAP ON MAP TO PIN ${_pinMode == PinMode.safa ? 'SAFA' : 'MARWA'}",
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
           _buildTargetBanner(context, sai),
           _buildLapCounter(context, sai),
           Expanded(
@@ -78,6 +124,15 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView> {
                   options: MapOptions(
                     initialCenter: userLatLng,
                     initialZoom: 17.0,
+                    onTap: (tapPos, point) {
+                      if (_pinMode == PinMode.safa) {
+                        context.read<SaiProvider>().setManualSafaPoint(point.latitude, point.longitude);
+                        setState(() => _pinMode = PinMode.none);
+                      } else if (_pinMode == PinMode.marwa) {
+                        context.read<SaiProvider>().setManualMarwaPoint(point.latitude, point.longitude);
+                        setState(() => _pinMode = PinMode.none);
+                      }
+                    },
                     onMapReady: () {
                       setState(() {
                         _isMapReady = true;
@@ -156,7 +211,7 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView> {
                   child: FloatingActionButton.small(
                     onPressed: () {
                       if (_isMapReady) {
-                        _mapController.move(userLatLng, 17.0);
+                        _animatedMapMove(userLatLng, 17.0);
                       }
                     },
                     backgroundColor: Colors.white,
@@ -247,23 +302,33 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView> {
       child: Column(
         children: [
           const Text(
-            'SA\'I SIMULATION',
+            'SA\'I SETTINGS & SIMULATION',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
           ),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton(
-                onPressed: () => context.read<SaiProvider>().initHillsLocally(),
-                child: const Text('Set Hills Locally'),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: () => context.read<SaiProvider>().simulateReachHill(),
-                child: const Text('Reached Target'),
-              ),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ActionChip(
+                  label: const Text('Pin Safa'),
+                  onPressed: () => setState(() => _pinMode = PinMode.safa),
+                  backgroundColor: _pinMode == PinMode.safa ? Colors.blue.shade100 : null,
+                ),
+                const SizedBox(width: 8),
+                ActionChip(
+                  label: const Text('Pin Marwa'),
+                  onPressed: () => setState(() => _pinMode = PinMode.marwa),
+                  backgroundColor: _pinMode == PinMode.marwa ? Colors.blue.shade100 : null,
+                ),
+                const SizedBox(width: 8),
+                ActionChip(
+                  label: const Text('Reached Target'),
+                  onPressed: () => context.read<SaiProvider>().simulateReachHill(),
+                ),
+              ],
+            ),
           ),
         ],
       ),

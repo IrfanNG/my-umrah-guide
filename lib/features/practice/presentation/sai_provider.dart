@@ -12,7 +12,7 @@ class SaiProvider with ChangeNotifier {
   Position? _marwaPosition;
   int _saiLapCount = 0;
   HillTarget _nextTarget = HillTarget.marwa; // Usually start at Safa, go to Marwa
-  final double _radius = 15.0; // Hills might need a bit more radius than Kaabah
+  double _radius = 15.0; // Dynamic radius
   StreamSubscription<Position>? _positionStream;
   Timer? _pollingTimer;
 
@@ -55,15 +55,54 @@ class SaiProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void setManualSafaPoint(double lat, double lng) {
+    _safaPosition = Position(
+      latitude: lat,
+      longitude: lng,
+      timestamp: DateTime.now(),
+      accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0,
+      altitudeAccuracy: 0, headingAccuracy: 0,
+    );
+    notifyListeners();
+  }
+
   void setMarwaPoint(Position pos) {
     _marwaPosition = pos;
+    notifyListeners();
+  }
+
+  void setManualMarwaPoint(double lat, double lng) {
+    _marwaPosition = Position(
+      latitude: lat,
+      longitude: lng,
+      timestamp: DateTime.now(),
+      accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0,
+      altitudeAccuracy: 0, headingAccuracy: 0,
+    );
     notifyListeners();
   }
 
   void updatePosition(Position position) {
     _currentPosition = position;
     
-    // Check if reached target
+    // Dynamic radius based on accuracy (max 30m)
+    _radius = (position.accuracy > 15) ? position.accuracy.clamp(15, 30) : 15.0;
+
+    // If Sa'i hasn't started, check if user is at Safa
+    if (_saiLapCount == 0 && _safaPosition != null) {
+      double distToSafa = _calculateDistance(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        _safaPosition!.latitude,
+        _safaPosition!.longitude,
+      );
+      if (distToSafa <= _radius) {
+        // Just initialize, don't count as lap yet (unless you want Safa to be Lap 0)
+        debugPrint("User at Safa. Ready to start.");
+      }
+    }
+
+    // Check if reached next target
     Position? targetPos = _nextTarget == HillTarget.marwa ? _marwaPosition : _safaPosition;
     
     if (targetPos != null) {

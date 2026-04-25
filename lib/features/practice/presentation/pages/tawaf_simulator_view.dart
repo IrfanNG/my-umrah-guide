@@ -11,9 +11,37 @@ class TawafSimulatorView extends StatefulWidget {
   State<TawafSimulatorView> createState() => _TawafSimulatorViewState();
 }
 
-class _TawafSimulatorViewState extends State<TawafSimulatorView> {
+class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProviderStateMixin {
   final MapController _mapController = MapController();
   bool _isMapReady = false;
+
+  void _animatedMapMove(LatLng destLocation, double destZoom) {
+    final latTween = Tween<double>(
+        begin: _mapController.camera.center.latitude, end: destLocation.latitude);
+    final lngTween = Tween<double>(
+        begin: _mapController.camera.center.longitude, end: destLocation.longitude);
+    final zoomTween = Tween<double>(begin: _mapController.camera.zoom, end: destZoom);
+
+    final controller = AnimationController(
+        duration: const Duration(milliseconds: 500), vsync: this);
+    final animation = CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
+
+    controller.addListener(() {
+      _mapController.move(
+          LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
+          zoomTween.evaluate(animation));
+    });
+
+    animation.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        controller.dispose();
+      } else if (status == AnimationStatus.dismissed) {
+        controller.dispose();
+      }
+    });
+
+    controller.forward();
+  }
 
   @override
   void initState() {
@@ -36,10 +64,14 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> {
         ? LatLng(geofence.kaabahPosition!.latitude, geofence.kaabahPosition!.longitude)
         : const LatLng(21.4225, 39.8262);
 
-    // Force follow user if GPS is active
+    // Smooth follow user if GPS is active
     if (geofence.currentPosition != null && _isMapReady) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _mapController.move(userLatLng, _mapController.camera.zoom);
+        // Only animate if distance is significant to avoid micro-jitter
+        double dist = const Distance().as(LengthUnit.Meter, _mapController.camera.center, userLatLng);
+        if (dist > 1.0) {
+           _animatedMapMove(userLatLng, _mapController.camera.zoom);
+        }
       });
     }
 
@@ -64,6 +96,17 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> {
                 ],
               ),
             ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            color: Colors.blue.shade50,
+            child: const Center(
+              child: Text(
+                "Tip: Tap on map to manually pin the Kaabah",
+                style: TextStyle(fontSize: 11, color: Colors.blue),
+              ),
+            ),
+          ),
           _buildStatusBanner(context, geofence),
           _buildLapCounter(context, geofence),
           Expanded(
@@ -78,6 +121,9 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> {
                       setState(() {
                         _isMapReady = true;
                       });
+                    },
+                    onTap: (tapPos, point) {
+                      context.read<GeofenceProvider>().setManualKaabahPoint(point.latitude, point.longitude);
                     },
                   ),
                   children: [
@@ -146,7 +192,7 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> {
                   child: FloatingActionButton.small(
                     onPressed: () {
                       if (_isMapReady) {
-                        _mapController.move(userLatLng, 18.0);
+                        _animatedMapMove(userLatLng, 18.0);
                       }
                     },
                     backgroundColor: Colors.white,
