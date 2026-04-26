@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:math' show cos, sqrt, asin;
 import 'dart:async';
-import 'package:flutter/foundation.dart'; // To check kIsWeb or platform
+import 'package:flutter/foundation.dart';
 import '../../../core/services/notification_service.dart';
 
 enum GeofenceStatus { initial, inside, outside }
@@ -15,12 +15,6 @@ class GeofenceProvider with ChangeNotifier {
   double _distance = 0.0;
   int _tawafLapCount = 0;
   StreamSubscription<Position>? _positionStream;
-  Timer? _pollingTimer;
-
-  GeofenceProvider() {
-    startTracking();
-    _startPolling();
-  }
 
   Position? get currentPosition => _currentPosition;
   Position? get kaabahPosition => _kaabahPosition;
@@ -38,12 +32,13 @@ class GeofenceProvider with ChangeNotifier {
         if (permission == LocationPermission.denied) return;
       }
 
-      _kaabahPosition = await Geolocator.getCurrentPosition();
+      Position pos = await Geolocator.getCurrentPosition();
+      updatePosition(pos, force: true);
+      _kaabahPosition = pos;
       _status = GeofenceStatus.inside;
-      startTracking(); // Start tracking after setting point
       notifyListeners();
     } catch (e) {
-      debugPrint("GPS Error: $e. Falling back to dummy location for demo.");
+      debugPrint("GPS Error: $e. Falling back to dummy location.");
       _setDummyKaabah();
     }
   }
@@ -56,14 +51,14 @@ class GeofenceProvider with ChangeNotifier {
       accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0,
       altitudeAccuracy: 0, headingAccuracy: 0,
     );
-    _status = GeofenceStatus.inside; // Assume user is inside if they just pinned it nearby
+    _status = GeofenceStatus.inside;
     notifyListeners();
   }
 
   void _setDummyKaabah() {
     _kaabahPosition = Position(
-      latitude: 21.4225, // Mecca Latitude
-      longitude: 39.8262, // Mecca Longitude
+      latitude: 21.4225,
+      longitude: 39.8262,
       timestamp: DateTime.now(),
       accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0,
       altitudeAccuracy: 0, headingAccuracy: 0,
@@ -72,7 +67,18 @@ class GeofenceProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void updatePosition(Position position) {
+  void updatePosition(Position position, {bool force = false}) {
+    // Throttle: Only update if moved more than 0.5 meters to prevent jitter loops
+    if (!force && _currentPosition != null) {
+      double moveDist = _calculateDistance(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        position.latitude,
+        position.longitude,
+      );
+      if (moveDist < 0.5) return; 
+    }
+
     _currentPosition = position;
     if (_kaabahPosition != null) {
       _distance = _calculateDistance(
@@ -82,98 +88,47 @@ class GeofenceProvider with ChangeNotifier {
         _kaabahPosition!.longitude,
       );
 
-      if (_distance <= _radius) {
-        if (_status != GeofenceStatus.inside) {
-          _status = GeofenceStatus.inside;
+      GeofenceStatus newStatus = _distance <= _radius 
+          ? GeofenceStatus.inside 
+          : GeofenceStatus.outside;
+
+      if (newStatus != _status) {
+        _status = newStatus;
+        if (_status == GeofenceStatus.inside) {
           NotificationService().showNotification(
-            id: 1,
-            title: "Entered Mataf Zone",
-            body: "You are now within range of the Kaabah.",
+            id: 1, title: "Entered Mataf Zone", body: "You are now within range of the Kaabah.",
           );
-        }
-      } else {
-        if (_status != GeofenceStatus.outside) {
-          _status = GeofenceStatus.outside;
+        } else {
           NotificationService().showNotification(
-            id: 2,
-            title: "Left Mataf Zone",
-            body: "Please stay close to the Kaabah for accurate tracking.",
+            id: 2, title: "Left Mataf Zone", body: "Please stay close to the Kaabah.",
           );
         }
       }
     }
-    notifyListeners();
-  }
-
-  // Simulation methods for UI testing
-  void simulateStatus(GeofenceStatus newStatus) {
-    _status = newStatus;
-    if (_status == GeofenceStatus.inside) {
-      NotificationService().showNotification(
-        id: 3,
-        title: "Simulation: Inside",
-        body: "Entering the Kaabah zone...",
-      );
-    }
-    notifyListeners();
-  }
-
-  void incrementTawafLap() {
-    if (_tawafLapCount < 7) {
-      _tawafLapCount++;
-      NotificationService().showNotification(
-        id: 4,
-        title: "Tawaf Round Completed",
-        body: "You have completed $_tawafLapCount / 7 rounds.",
-      );
-      
-      if (_tawafLapCount == 7) {
-        NotificationService().showNotification(
-          id: 5,
-          title: "Tawaf Completed",
-          body: "Alhamdulillah, you have finished 7 rounds of Tawaf.",
-        );
-      }
-    }
-    notifyListeners();
-  }
-
-  void resetTawaf() {
-    _tawafLapCount = 0;
     notifyListeners();
   }
 
   // Real-time Tracking
   Future<void> startTracking() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+    if (_positionStream != null) return; // Already tracking
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
 
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
     
-    if (permission == LocationPermission.deniedForever) return;
+    // Get last known position for immediate UI feedback
+    Position? lastPos = await Geolocator.getLastKnownPosition();
+    if (lastPos != null) updatePosition(lastPos, force: true);
 
-    // Get initial position immediately
-    try {
-      Position initial = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-      );
-      updatePosition(initial);
-    } catch (e) {
-      debugPrint("Initial position error: $e");
-    }
-
-    _positionStream?.cancel();
     _positionStream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
-        distanceFilter: 1, // Update every 1 meter
+        distanceFilter: 1, 
       ),
     ).listen((Position position) {
       updatePosition(position);
@@ -183,31 +138,34 @@ class GeofenceProvider with ChangeNotifier {
   void stopTracking() {
     _positionStream?.cancel();
     _positionStream = null;
-    _pollingTimer?.cancel();
   }
 
-  void _startPolling() {
-    _pollingTimer?.cancel();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-      try {
-        Position pos = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-        );
-        updatePosition(pos);
-      } catch (e) {
-        debugPrint("Polling error: $e");
-      }
-    });
+  void simulateStatus(GeofenceStatus newStatus) {
+    _status = newStatus;
+    notifyListeners();
+  }
+
+  void incrementTawafLap() {
+    if (_tawafLapCount < 7) {
+      _tawafLapCount++;
+      NotificationService().showNotification(
+        id: 4, title: "Tawaf Round Completed", body: "You have completed $_tawafLapCount / 7 rounds.",
+      );
+    }
+    notifyListeners();
+  }
+
+  void resetTawaf() {
+    _tawafLapCount = 0;
+    notifyListeners();
   }
 
   @override
   void dispose() {
     _positionStream?.cancel();
-    _pollingTimer?.cancel();
     super.dispose();
   }
 
-  // Helper: Haversine formula to calculate distance in meters
   double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     var p = 0.017453292519943295;
     var c = cos;
