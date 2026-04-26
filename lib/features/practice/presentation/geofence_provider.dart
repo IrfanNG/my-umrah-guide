@@ -47,8 +47,8 @@ class GeofenceProvider with ChangeNotifier {
       }
 
       // Try getting position but limit wait time
-      Position pos = await Geolocator.getCurrentPosition(
-        timeLimit: const Duration(seconds: 3),
+      Position pos = await Geolocator.getCurrentPosition().timeout(
+        const Duration(seconds: 3),
       );
       updatePosition(pos, force: true);
       _kaabahPosition = pos;

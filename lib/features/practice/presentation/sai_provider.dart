@@ -34,7 +34,7 @@ class SaiProvider with ChangeNotifier {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) return;
       }
-      Position pos = await Geolocator.getCurrentPosition(timeLimit: const Duration(seconds: 3));
+      Position pos = await Geolocator.getCurrentPosition().timeout(const Duration(seconds: 3));
       updatePosition(pos, force: true);
       _safaPosition = pos;
       notifyListeners();
@@ -58,7 +58,7 @@ class SaiProvider with ChangeNotifier {
       return;
     }
     try {
-      Position pos = await Geolocator.getCurrentPosition(timeLimit: const Duration(seconds: 3));
+      Position pos = await Geolocator.getCurrentPosition().timeout(const Duration(seconds: 3));
       updatePosition(pos, force: true);
       _marwaPosition = pos;
       notifyListeners();
