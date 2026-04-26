@@ -11,7 +11,7 @@ class GeofenceProvider with ChangeNotifier {
   Position? _currentPosition;
   Position? _kaabahPosition;
   GeofenceStatus _status = GeofenceStatus.initial;
-  final double _radius = 10.0; // Default 10 meters
+  final double _radius = 75.0; // Updated to 75m per Methodchap3.pdf Table 5
   double _distance = 0.0;
   int _tawafLapCount = 0;
   StreamSubscription<Position>? _positionStream;
@@ -25,6 +25,15 @@ class GeofenceProvider with ChangeNotifier {
 
   // Set the reference point (Kaabah) to current user location
   Future<void> setKaabahPoint() async {
+    // Optimization: Use cached stream position for instant feedback
+    if (_currentPosition != null) {
+      _kaabahPosition = _currentPosition;
+      _status = GeofenceStatus.inside;
+      notifyListeners();
+      return;
+    }
+
+    // Fallback if stream hasn't locked yet
     try {
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
@@ -32,13 +41,16 @@ class GeofenceProvider with ChangeNotifier {
         if (permission == LocationPermission.denied) return;
       }
 
-      Position pos = await Geolocator.getCurrentPosition();
+      // Try getting position but limit wait time
+      Position pos = await Geolocator.getCurrentPosition(
+        timeLimit: const Duration(seconds: 3),
+      );
       updatePosition(pos, force: true);
       _kaabahPosition = pos;
       _status = GeofenceStatus.inside;
       notifyListeners();
     } catch (e) {
-      debugPrint("GPS Error: $e. Falling back to dummy location.");
+      debugPrint("GPS Error/Timeout: $e. Falling back to dummy location.");
       _setDummyKaabah();
     }
   }
@@ -96,11 +108,11 @@ class GeofenceProvider with ChangeNotifier {
         _status = newStatus;
         if (_status == GeofenceStatus.inside) {
           NotificationService().showNotification(
-            id: 1, title: "Entered Mataf Zone", body: "You are now within range of the Kaabah.",
+            id: 1, title: "Entered Tawaf Zone", body: "You are now within range of the Kaabah.",
           );
         } else {
           NotificationService().showNotification(
-            id: 2, title: "Left Mataf Zone", body: "Please stay close to the Kaabah.",
+            id: 2, title: "Left Tawaf Zone", body: "Please stay close to the Kaabah.",
           );
         }
       }
@@ -121,9 +133,13 @@ class GeofenceProvider with ChangeNotifier {
       if (permission == LocationPermission.denied) return;
     }
     
-    // Get last known position for immediate UI feedback
-    Position? lastPos = await Geolocator.getLastKnownPosition();
-    if (lastPos != null) updatePosition(lastPos, force: true);
+    // Web safe: Wrap getLastKnownPosition in try-catch as it's often unsupported on Web
+    try {
+      Position? lastPos = await Geolocator.getLastKnownPosition();
+      if (lastPos != null) updatePosition(lastPos, force: true);
+    } catch (e) {
+      debugPrint("LastKnownPosition not supported: $e");
+    }
 
     _positionStream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
