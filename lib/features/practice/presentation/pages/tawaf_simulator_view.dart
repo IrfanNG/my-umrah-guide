@@ -47,8 +47,42 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GeofenceProvider>().startTracking();
+      final provider = context.read<GeofenceProvider>();
+      provider.startTracking();
+      
+      // Auto-follow listener
+      provider.addListener(_onPositionUpdate);
     });
+  }
+
+  @override
+  void dispose() {
+    // Crucial: Remove listener to prevent memory leaks and crashes
+    context.read<GeofenceProvider>().removeListener(_onPositionUpdate);
+    super.dispose();
+  }
+
+  void _onPositionUpdate() {
+    if (!mounted || !_isMapReady) return;
+    
+    final geofence = context.read<GeofenceProvider>();
+    if (geofence.currentPosition != null) {
+      final userLatLng = LatLng(
+        geofence.currentPosition!.latitude, 
+        geofence.currentPosition!.longitude
+      );
+      
+      // Only move camera if significant distance changed to avoid micro-jitter
+      double dist = const Distance().as(
+        LengthUnit.Meter, 
+        _mapController.camera.center, 
+        userLatLng
+      );
+      
+      if (dist > 0.5) {
+        _animatedMapMove(userLatLng, _mapController.camera.zoom);
+      }
+    }
   }
 
   @override
@@ -56,24 +90,15 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
     final geofence = context.watch<GeofenceProvider>();
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    final userLatLng = geofence.currentPosition != null
-        ? LatLng(geofence.currentPosition!.latitude, geofence.currentPosition!.longitude)
-        : const LatLng(21.4225, 39.8262);
+    // Use dummy Mecca coords if GPS is null, but we track if it's actually null
+    final isGpsNull = geofence.currentPosition == null;
+    final userLatLng = isGpsNull
+        ? const LatLng(21.4225, 39.8262)
+        : LatLng(geofence.currentPosition!.latitude, geofence.currentPosition!.longitude);
     
     final kaabahLatLng = geofence.kaabahPosition != null
         ? LatLng(geofence.kaabahPosition!.latitude, geofence.kaabahPosition!.longitude)
         : const LatLng(21.4225, 39.8262);
-
-    // Smooth follow user if GPS is active
-    if (geofence.currentPosition != null && _isMapReady) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Only animate if distance is significant to avoid micro-jitter
-        double dist = const Distance().as(LengthUnit.Meter, _mapController.camera.center, userLatLng);
-        if (dist > 1.0) {
-           _animatedMapMove(userLatLng, _mapController.camera.zoom);
-        }
-      });
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -84,15 +109,15 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
       ),
       body: Column(
         children: [
-          if (geofence.currentPosition == null)
+          if (isGpsNull)
             Container(
               padding: const EdgeInsets.all(8),
               color: Colors.orange.shade100,
               child: const Row(
                 children: [
-                  Icon(Icons.gps_fixed, size: 16),
-                  SizedBox(width: 8),
-                  Text("Waiting for GPS signal...", style: TextStyle(fontSize: 12)),
+                  SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                  SizedBox(width: 12),
+                  Text("Acquiring GPS signal...", style: TextStyle(fontSize: 12)),
                 ],
               ),
             ),
@@ -130,6 +155,7 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
                     TileLayer(
                       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.mish.my_umrah_guide',
+                      keepBuffer: 3, // Fixes AbortError on web by buffering tiles
                     ),
                     if (geofence.kaabahPosition != null)
                       CircleLayer(
@@ -157,12 +183,13 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
                             height: 40,
                             child: const Icon(Icons.location_on, color: Colors.black, size: 40),
                           ),
-                        Marker(
-                          point: userLatLng,
-                          width: 40,
-                          height: 40,
-                          child: const Icon(Icons.person_pin_circle, color: Colors.blue, size: 40),
-                        ),
+                        if (!isGpsNull) // Only show user pin if GPS is acquired
+                          Marker(
+                            point: userLatLng,
+                            width: 40,
+                            height: 40,
+                            child: const Icon(Icons.person_pin_circle, color: Colors.blue, size: 40),
+                          ),
                       ],
                     ),
                   ],
@@ -200,26 +227,32 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
                   ),
                 ),
                 Positioned(
-                  bottom: 24,
-                  left: 24,
-                  right: 24,
-                  child: Column(
-                    children: [
-                      if (geofence.kaabahPosition == null)
-                        ElevatedButton.icon(
-                          onPressed: () => context.read<GeofenceProvider>().setKaabahPoint(),
-                          icon: const Icon(Icons.location_on),
-                          label: const Text('Set Kaabah Location Here'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      const SizedBox(height: 16),
-                      _buildDevOverlay(context),
-                    ],
+                  bottom: 16,
+                  left: 16,
+                  right: 16,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.3),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (geofence.kaabahPosition == null)
+                            ElevatedButton.icon(
+                              onPressed: () => context.read<GeofenceProvider>().setKaabahPoint(),
+                              icon: const Icon(Icons.location_on),
+                              label: const Text('Set Kaabah Location Here'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryColor,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          const SizedBox(height: 8),
+                          _buildDevOverlay(context),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -238,17 +271,23 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
 
     if (geofence.kaabahPosition != null) {
       if (geofence.status == GeofenceStatus.inside) {
-        message = "YOU ARE INSIDE THE KAABAH RADIUS";
+        message = "YOU ARE INSIDE THE TAWAF ZONE";
         bgColor = Theme.of(context).colorScheme.primary.withValues(alpha: 0.1);
         textColor = Theme.of(context).colorScheme.primary;
         icon = Icons.check_circle;
+      } else if (geofence.miqatTriggered) {
+        message = "MIQAT APPROACHING (PREPARE NIYYAH)";
+        bgColor = Colors.blue.shade50;
+        textColor = Colors.blue.shade700;
+        icon = Icons.access_time_filled;
       } else {
-        message = "OUTSIDE RADIUS ALERT!";
+        message = "OUTSIDE TAWAF ZONE!";
         bgColor = Colors.red.shade50;
         textColor = Colors.red.shade700;
         icon = Icons.warning_amber_rounded;
       }
     }
+
 
     return Container(
       width: double.infinity,
@@ -309,35 +348,33 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
 
   Widget _buildDevOverlay(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           const Text(
             'SIMULATION DEMO',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
           ),
-          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               TextButton(
                 onPressed: () => context.read<GeofenceProvider>().simulateStatus(GeofenceStatus.inside),
-                child: const Text('Enter Zone'),
+                child: const Text('Enter', style: TextStyle(fontSize: 12)),
               ),
-              const SizedBox(height: 30, child: VerticalDivider()),
               TextButton(
                 onPressed: () => context.read<GeofenceProvider>().simulateStatus(GeofenceStatus.outside),
-                child: const Text('Exit Zone'),
+                child: const Text('Exit', style: TextStyle(fontSize: 12)),
               ),
-              const SizedBox(height: 30, child: VerticalDivider()),
               TextButton(
                 onPressed: () => context.read<GeofenceProvider>().incrementTawafLap(),
-                child: const Text('Next Round'),
+                child: const Text('Next', style: TextStyle(fontSize: 12)),
               ),
             ],
           ),

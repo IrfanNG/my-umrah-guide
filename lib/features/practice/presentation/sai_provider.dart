@@ -12,14 +12,8 @@ class SaiProvider with ChangeNotifier {
   Position? _marwaPosition;
   int _saiLapCount = 0;
   HillTarget _nextTarget = HillTarget.marwa; // Usually start at Safa, go to Marwa
-  double _radius = 15.0; // Dynamic radius
+  final double _radius = 50.0; // 50m radius covers the 100m width corridor specified in PDF
   StreamSubscription<Position>? _positionStream;
-  Timer? _pollingTimer;
-
-  SaiProvider() {
-    startTracking();
-    _startPolling();
-  }
 
   Position? get currentPosition => _currentPosition;
   Position? get safaPosition => _safaPosition;
@@ -28,96 +22,80 @@ class SaiProvider with ChangeNotifier {
   HillTarget get nextTarget => _nextTarget;
   double get radius => _radius;
 
-  // Initialize hills for local practice
-  Future<void> initHillsLocally() async {
+  Future<void> setSafaPoint() async {
+    if (_currentPosition != null) {
+      _safaPosition = _currentPosition;
+      notifyListeners();
+      return;
+    }
     try {
-      Position current = await Geolocator.getCurrentPosition();
-      _safaPosition = current;
-      // Set Marwa 50 meters North for practice
-      _marwaPosition = Position(
-        latitude: current.latitude + 0.00045, // approx 50m
-        longitude: current.longitude,
-        timestamp: DateTime.now(),
-        accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0,
-        altitudeAccuracy: 0, headingAccuracy: 0,
-      );
-      _saiLapCount = 0;
-      _nextTarget = HillTarget.marwa;
-      startTracking();
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+      Position pos = await Geolocator.getCurrentPosition(timeLimit: const Duration(seconds: 3));
+      updatePosition(pos, force: true);
+      _safaPosition = pos;
       notifyListeners();
     } catch (e) {
-      debugPrint("Error setting local hills: $e");
+      debugPrint("GPS Error/Timeout Safa: $e");
     }
-  }
-
-  void setSafaPoint(Position pos) {
-    _safaPosition = pos;
-    notifyListeners();
   }
 
   void setManualSafaPoint(double lat, double lng) {
     _safaPosition = Position(
-      latitude: lat,
-      longitude: lng,
-      timestamp: DateTime.now(),
-      accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0,
-      altitudeAccuracy: 0, headingAccuracy: 0,
+      latitude: lat, longitude: lng, timestamp: DateTime.now(),
+      accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0, altitudeAccuracy: 0, headingAccuracy: 0,
     );
     notifyListeners();
   }
 
-  void setMarwaPoint(Position pos) {
-    _marwaPosition = pos;
-    notifyListeners();
+  Future<void> setMarwaPoint() async {
+    if (_currentPosition != null) {
+      _marwaPosition = _currentPosition;
+      notifyListeners();
+      return;
+    }
+    try {
+      Position pos = await Geolocator.getCurrentPosition(timeLimit: const Duration(seconds: 3));
+      updatePosition(pos, force: true);
+      _marwaPosition = pos;
+      notifyListeners();
+    } catch (e) {
+      debugPrint("GPS Error/Timeout Marwa: $e");
+    }
   }
 
   void setManualMarwaPoint(double lat, double lng) {
     _marwaPosition = Position(
-      latitude: lat,
-      longitude: lng,
-      timestamp: DateTime.now(),
-      accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0,
-      altitudeAccuracy: 0, headingAccuracy: 0,
+      latitude: lat, longitude: lng, timestamp: DateTime.now(),
+      accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0, altitudeAccuracy: 0, headingAccuracy: 0,
     );
     notifyListeners();
   }
 
-  void updatePosition(Position position) {
-    _currentPosition = position;
-    
-    // Dynamic radius based on accuracy (max 30m)
-    _radius = (position.accuracy > 15) ? position.accuracy.clamp(15, 30) : 15.0;
-
-    // If Sa'i hasn't started, check if user is at Safa
-    if (_saiLapCount == 0 && _safaPosition != null) {
-      double distToSafa = _calculateDistance(
-        _currentPosition!.latitude,
-        _currentPosition!.longitude,
-        _safaPosition!.latitude,
-        _safaPosition!.longitude,
+  void updatePosition(Position position, {bool force = false}) {
+    if (!force && _currentPosition != null) {
+      double moveDist = _calculateDistance(
+        _currentPosition!.latitude, _currentPosition!.longitude,
+        position.latitude, position.longitude,
       );
-      if (distToSafa <= _radius) {
-        // Just initialize, don't count as lap yet (unless you want Safa to be Lap 0)
-        debugPrint("User at Safa. Ready to start.");
-      }
+      if (moveDist < 0.5) return; 
     }
 
-    // Check if reached next target
-    Position? targetPos = _nextTarget == HillTarget.marwa ? _marwaPosition : _safaPosition;
+    _currentPosition = position;
     
+    Position? targetPos = _nextTarget == HillTarget.marwa ? _marwaPosition : _safaPosition;
     if (targetPos != null) {
       double dist = _calculateDistance(
-        _currentPosition!.latitude,
-        _currentPosition!.longitude,
-        targetPos.latitude,
-        targetPos.longitude,
+        _currentPosition!.latitude, _currentPosition!.longitude,
+        targetPos.latitude, targetPos.longitude,
       );
-
       if (dist <= _radius) {
         _reachHill();
       }
     }
-    
     notifyListeners();
   }
 
@@ -140,13 +118,12 @@ class SaiProvider with ChangeNotifier {
       }
       
       _nextTarget = _nextTarget == HillTarget.marwa ? HillTarget.safa : HillTarget.marwa;
-      notifyListeners();
     }
   }
 
-  // Simulation
   void simulateReachHill() {
     _reachHill();
+    notifyListeners();
   }
 
   void resetSai() {
@@ -155,37 +132,27 @@ class SaiProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Real-time Tracking
   Future<void> startTracking() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (_positionStream != null) return;
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
 
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
     
-    if (permission == LocationPermission.deniedForever) return;
-
-    // Get initial position immediately
     try {
-      Position initial = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-      );
-      updatePosition(initial);
+      Position? lastPos = await Geolocator.getLastKnownPosition();
+      if (lastPos != null) updatePosition(lastPos, force: true);
     } catch (e) {
-      debugPrint("Initial position error: $e");
+      debugPrint("LastKnownPosition not supported: $e");
     }
 
-    _positionStream?.cancel();
     _positionStream = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 1, // Update every 1 meter
+        accuracy: LocationAccuracy.high, distanceFilter: 1,
       ),
     ).listen((Position position) {
       updatePosition(position);
@@ -195,27 +162,11 @@ class SaiProvider with ChangeNotifier {
   void stopTracking() {
     _positionStream?.cancel();
     _positionStream = null;
-    _pollingTimer?.cancel();
-  }
-
-  void _startPolling() {
-    _pollingTimer?.cancel();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
-      try {
-        Position pos = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-        );
-        updatePosition(pos);
-      } catch (e) {
-        debugPrint("Polling error: $e");
-      }
-    });
   }
 
   @override
   void dispose() {
     _positionStream?.cancel();
-    _pollingTimer?.cancel();
     super.dispose();
   }
 

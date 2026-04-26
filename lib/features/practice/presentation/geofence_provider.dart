@@ -11,7 +11,11 @@ class GeofenceProvider with ChangeNotifier {
   Position? _currentPosition;
   Position? _kaabahPosition;
   GeofenceStatus _status = GeofenceStatus.initial;
-  final double _radius = 75.0; // Updated to 75m per Methodchap3.pdf Table 5
+  bool _miqatTriggered = false; // New: Miqat status
+  
+  final double _radius = 75.0; // Tawaf radius per PDF
+  final double _miqatRadius = 150.0; // Miqat radius per PDF Table 5
+  
   double _distance = 0.0;
   int _tawafLapCount = 0;
   StreamSubscription<Position>? _positionStream;
@@ -19,6 +23,7 @@ class GeofenceProvider with ChangeNotifier {
   Position? get currentPosition => _currentPosition;
   Position? get kaabahPosition => _kaabahPosition;
   GeofenceStatus get status => _status;
+  bool get miqatTriggered => _miqatTriggered; // Getter for Miqat
   double get radius => _radius;
   double get distance => _distance;
   int get tawafLapCount => _tawafLapCount;
@@ -99,6 +104,18 @@ class GeofenceProvider with ChangeNotifier {
         _kaabahPosition!.latitude,
         _kaabahPosition!.longitude,
       );
+
+      // Miqat Detection (150m)
+      if (_distance <= _miqatRadius && !_miqatTriggered) {
+        _miqatTriggered = true;
+        NotificationService().showNotification(
+          id: 0, 
+          title: "Miqat Approaching", 
+          body: "You are within 150m of the Kaabah. Please prepare your Niyyah.",
+        );
+      } else if (_distance > _miqatRadius) {
+        _miqatTriggered = false;
+      }
 
       GeofenceStatus newStatus = _distance <= _radius 
           ? GeofenceStatus.inside 

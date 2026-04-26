@@ -50,8 +50,42 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView> with TickerProvider
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SaiProvider>().startTracking();
+      final provider = context.read<SaiProvider>();
+      provider.startTracking();
+      
+      // Auto-follow listener
+      provider.addListener(_onPositionUpdate);
     });
+  }
+
+  @override
+  void dispose() {
+    // Prevent memory leaks
+    context.read<SaiProvider>().removeListener(_onPositionUpdate);
+    super.dispose();
+  }
+
+  void _onPositionUpdate() {
+    if (!mounted || !_isMapReady) return;
+    
+    final sai = context.read<SaiProvider>();
+    if (sai.currentPosition != null) {
+      final userLatLng = LatLng(
+        sai.currentPosition!.latitude, 
+        sai.currentPosition!.longitude
+      );
+      
+      // Only move camera if moved more than 0.5m
+      double dist = const Distance().as(
+        LengthUnit.Meter, 
+        _mapController.camera.center, 
+        userLatLng
+      );
+      
+      if (dist > 0.5) {
+        _animatedMapMove(userLatLng, _mapController.camera.zoom);
+      }
+    }
   }
 
   @override
@@ -59,9 +93,10 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView> with TickerProvider
     final sai = context.watch<SaiProvider>();
     final primaryColor = Theme.of(context).colorScheme.primary;
 
-    final userLatLng = sai.currentPosition != null
-        ? LatLng(sai.currentPosition!.latitude, sai.currentPosition!.longitude)
-        : const LatLng(21.4235, 39.8269);
+    final isGpsNull = sai.currentPosition == null;
+    final userLatLng = isGpsNull
+        ? const LatLng(21.4235, 39.8269)
+        : LatLng(sai.currentPosition!.latitude, sai.currentPosition!.longitude);
 
     final safaLatLng = sai.safaPosition != null
         ? LatLng(sai.safaPosition!.latitude, sai.safaPosition!.longitude)
@@ -70,16 +105,6 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView> with TickerProvider
     final marwaLatLng = sai.marwaPosition != null
         ? LatLng(sai.marwaPosition!.latitude, sai.marwaPosition!.longitude)
         : const LatLng(21.4248, 39.8267);
-
-    // Smooth follow user if GPS is active
-    if (sai.currentPosition != null && _isMapReady) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        double dist = const Distance().as(LengthUnit.Meter, _mapController.camera.center, userLatLng);
-        if (dist > 1.0) {
-           _animatedMapMove(userLatLng, _mapController.camera.zoom);
-        }
-      });
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -90,15 +115,15 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView> with TickerProvider
       ),
       body: Column(
         children: [
-          if (sai.currentPosition == null)
+          if (isGpsNull)
             Container(
               padding: const EdgeInsets.all(8),
               color: Colors.orange.shade100,
               child: const Row(
                 children: [
-                  Icon(Icons.gps_fixed, size: 16),
-                  SizedBox(width: 8),
-                  Text("Waiting for GPS signal...", style: TextStyle(fontSize: 12)),
+                  SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                  SizedBox(width: 12),
+                  Text("Acquiring GPS signal...", style: TextStyle(fontSize: 12)),
                 ],
               ),
             ),
@@ -143,7 +168,19 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView> with TickerProvider
                     TileLayer(
                       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.mish.my_umrah_guide',
+                      keepBuffer: 3, // Fixes AbortError on Web
                     ),
+                    // Visual 100m Corridor representation
+                    if (sai.safaPosition != null && sai.marwaPosition != null)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: [safaLatLng, marwaLatLng],
+                            strokeWidth: 40.0, // Visual corridor width
+                            color: primaryColor.withValues(alpha: 0.1),
+                          ),
+                        ],
+                      ),
                     CircleLayer(
                       circles: [
                         CircleMarker(
@@ -178,11 +215,12 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView> with TickerProvider
                             ],
                           ),
                         ),
-                        Marker(
-                          point: userLatLng,
-                          width: 40, height: 40,
-                          child: const Icon(Icons.person_pin_circle, color: Colors.blue, size: 40),
-                        ),
+                        if (!isGpsNull)
+                          Marker(
+                            point: userLatLng,
+                            width: 40, height: 40,
+                            child: const Icon(Icons.person_pin_circle, color: Colors.blue, size: 40),
+                          ),
                       ],
                     ),
                   ],
@@ -219,10 +257,15 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView> with TickerProvider
                   ),
                 ),
                 Positioned(
-                  bottom: 24,
-                  left: 24,
-                  right: 24,
-                  child: _buildDevOverlay(context),
+                  bottom: 16,
+                  left: 16,
+                  right: 16,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.3),
+                    child: SingleChildScrollView(
+                      child: _buildDevOverlay(context),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -293,38 +336,39 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView> with TickerProvider
 
   Widget _buildDevOverlay(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           const Text(
             'SA\'I SETTINGS & SIMULATION',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ActionChip(
-                  label: const Text('Pin Safa'),
+                  label: const Text('Pin Safa', style: TextStyle(fontSize: 12)),
                   onPressed: () => setState(() => _pinMode = PinMode.safa),
                   backgroundColor: _pinMode == PinMode.safa ? Colors.blue.shade100 : null,
                 ),
                 const SizedBox(width: 8),
                 ActionChip(
-                  label: const Text('Pin Marwa'),
+                  label: const Text('Pin Marwa', style: TextStyle(fontSize: 12)),
                   onPressed: () => setState(() => _pinMode = PinMode.marwa),
                   backgroundColor: _pinMode == PinMode.marwa ? Colors.blue.shade100 : null,
                 ),
                 const SizedBox(width: 8),
                 ActionChip(
-                  label: const Text('Reached Target'),
+                  label: const Text('Reach', style: TextStyle(fontSize: 12)),
                   onPressed: () => context.read<SaiProvider>().simulateReachHill(),
                 ),
               ],
