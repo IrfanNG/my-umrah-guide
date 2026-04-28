@@ -1,4 +1,7 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -6,8 +9,15 @@ class NotificationService {
   NotificationService._internal();
 
   final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  
+  // Keys for showing UI elements without context
+  static final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 
   Future<void> init() async {
+    if (kIsWeb) return; // Skip notification init on web
+
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
@@ -32,6 +42,18 @@ class NotificationService {
     required String title,
     required String body,
   }) async {
+    if (kIsWeb) {
+      print('=== TRIGGERING TOP WEB NOTIFICATION: $title - $body ===');
+      
+      final overlayState = navigatorKey.currentState?.overlay;
+      if (overlayState != null) {
+        _showTopOverlay(overlayState, title, body);
+      } else {
+        print('!!! ERROR: navigatorKey.currentState?.overlay is NULL !!!');
+      }
+      return;
+    }
+
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'umrah_guide_channel',
       'Umrah Guide Notifications',
@@ -47,5 +69,70 @@ class NotificationService {
     );
 
     await _notificationsPlugin.show(id, title, body, platformDetails);
+  }
+
+  void _showTopOverlay(OverlayState overlay, String title, String body) {
+    print('--- INSERTING OVERLAY ENTRY ---');
+    late OverlayEntry entry;
+
+    entry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 50,
+        left: 16,
+        right: 16,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD4AF37), // Mecca Gold
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.notifications_active, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        body,
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(entry);
+
+    // Auto-remove after 4 seconds
+    Future.delayed(const Duration(seconds: 4), () {
+      if (entry.mounted) {
+        entry.remove();
+      }
+    });
   }
 }

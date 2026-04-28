@@ -30,7 +30,9 @@ class MyUmrahGuide extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'MyUmrahGuide',
+      navigatorKey: NotificationService.navigatorKey,
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: NotificationService.messengerKey,
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: const Color(0xFFFAFAFA), // Zinc-50
