@@ -179,6 +179,7 @@ class GeofenceProvider with ChangeNotifier {
   }
 
   void incrementTawafLap() {
+    if (_status != GeofenceStatus.inside) return;
     if (_tawafLapCount < 7) {
       _tawafLapCount++;
       NotificationService().showNotification(
