@@ -1,23 +1,34 @@
+import 'dart:async';
+import 'dart:math' show asin, cos, sqrt;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'dart:math' show cos, sqrt, asin;
-import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../core/services/notification_service.dart';
 
 enum GeofenceStatus { initial, inside, outside }
 
 class GeofenceProvider with ChangeNotifier {
+  static const String _tawafLapCountKey = 'tawaf_lap_count';
+  static const String _tawafIsPausedKey = 'tawaf_is_paused';
+  static const String _tawafIsCompletedKey = 'tawaf_is_completed';
+
   Position? _currentPosition;
   Position? _kaabahPosition;
   GeofenceStatus _status = GeofenceStatus.initial;
   bool _miqatTriggered = false; // New: Miqat status
-  
+
   final double _radius = 75.0; // Tawaf radius per PDF
   final double _miqatRadius = 150.0; // Miqat radius per PDF Table 5
-  
+
   double _distance = 0.0;
   int _tawafLapCount = 0;
+  bool _isTawafPaused = false;
+  bool _isTawafCompleted = false;
+  bool _tawafExitPromptPending = false;
+  Future<void> _tawafPersistenceQueue = Future<void>.value();
   StreamSubscription<Position>? _positionStream;
 
   Position? get currentPosition => _currentPosition;
@@ -27,13 +38,17 @@ class GeofenceProvider with ChangeNotifier {
   double get radius => _radius;
   double get distance => _distance;
   int get tawafLapCount => _tawafLapCount;
+  bool get isTawafPaused => _isTawafPaused;
+  bool get isTawafCompleted => _isTawafCompleted;
+  bool get hasSavedTawafProgress => _tawafLapCount > 0 && _tawafLapCount < 7;
+  bool get shouldShowTawafExitPrompt => _tawafExitPromptPending;
 
   // Set the reference point (Kaabah) to current user location
   Future<void> setKaabahPoint() async {
     // Optimization: Use cached stream position for instant feedback
     if (_currentPosition != null) {
       _kaabahPosition = _currentPosition;
-      _status = GeofenceStatus.inside;
+      _applyGeofenceStatus(GeofenceStatus.inside);
       notifyListeners();
       return;
     }
@@ -52,7 +67,7 @@ class GeofenceProvider with ChangeNotifier {
       );
       updatePosition(pos, force: true);
       _kaabahPosition = pos;
-      _status = GeofenceStatus.inside;
+      _applyGeofenceStatus(GeofenceStatus.inside);
       notifyListeners();
     } catch (e) {
       debugPrint("GPS Error/Timeout: $e. Falling back to dummy location.");
@@ -65,10 +80,15 @@ class GeofenceProvider with ChangeNotifier {
       latitude: lat,
       longitude: lng,
       timestamp: DateTime.now(),
-      accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0,
-      altitudeAccuracy: 0, headingAccuracy: 0,
+      accuracy: 0,
+      altitude: 0,
+      heading: 0,
+      speed: 0,
+      speedAccuracy: 0,
+      altitudeAccuracy: 0,
+      headingAccuracy: 0,
     );
-    _status = GeofenceStatus.inside;
+    _applyGeofenceStatus(GeofenceStatus.inside);
     notifyListeners();
   }
 
@@ -77,10 +97,15 @@ class GeofenceProvider with ChangeNotifier {
       latitude: 21.4225,
       longitude: 39.8262,
       timestamp: DateTime.now(),
-      accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0,
-      altitudeAccuracy: 0, headingAccuracy: 0,
+      accuracy: 0,
+      altitude: 0,
+      heading: 0,
+      speed: 0,
+      speedAccuracy: 0,
+      altitudeAccuracy: 0,
+      headingAccuracy: 0,
     );
-    _status = GeofenceStatus.inside;
+    _applyGeofenceStatus(GeofenceStatus.inside);
     notifyListeners();
   }
 
@@ -93,7 +118,7 @@ class GeofenceProvider with ChangeNotifier {
         position.latitude,
         position.longitude,
       );
-      if (moveDist < 0.5) return; 
+      if (moveDist < 0.5) return;
     }
 
     _currentPosition = position;
@@ -109,30 +134,20 @@ class GeofenceProvider with ChangeNotifier {
       if (_distance <= _miqatRadius && !_miqatTriggered) {
         _miqatTriggered = true;
         NotificationService().showNotification(
-          id: 0, 
-          title: "Miqat Approaching", 
-          body: "You are within 150m of the Kaabah. Please prepare your Niyyah.",
+          id: 0,
+          title: "Miqat Approaching",
+          body:
+              "You are within 150m of the Kaabah. Please prepare your Niyyah.",
         );
       } else if (_distance > _miqatRadius) {
         _miqatTriggered = false;
       }
 
-      GeofenceStatus newStatus = _distance <= _radius 
-          ? GeofenceStatus.inside 
+      GeofenceStatus newStatus = _distance <= _radius
+          ? GeofenceStatus.inside
           : GeofenceStatus.outside;
 
-      if (newStatus != _status) {
-        _status = newStatus;
-        if (_status == GeofenceStatus.inside) {
-          NotificationService().showNotification(
-            id: 1, title: "Entered Tawaf Zone", body: "You are now within range of the Kaabah.",
-          );
-        } else {
-          NotificationService().showNotification(
-            id: 2, title: "Left Tawaf Zone", body: "Please stay close to the Kaabah.",
-          );
-        }
-      }
+      _applyGeofenceStatus(newStatus);
     }
     notifyListeners();
   }
@@ -149,7 +164,7 @@ class GeofenceProvider with ChangeNotifier {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) return;
     }
-    
+
     // Web safe: Wrap getLastKnownPosition in try-catch as it's often unsupported on Web
     try {
       Position? lastPos = await Geolocator.getLastKnownPosition();
@@ -158,14 +173,15 @@ class GeofenceProvider with ChangeNotifier {
       debugPrint("LastKnownPosition not supported: $e");
     }
 
-    _positionStream = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 1, 
-      ),
-    ).listen((Position position) {
-      updatePosition(position);
-    });
+    _positionStream =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 1,
+          ),
+        ).listen((Position position) {
+          updatePosition(position);
+        });
   }
 
   void stopTracking() {
@@ -174,24 +190,132 @@ class GeofenceProvider with ChangeNotifier {
   }
 
   void simulateStatus(GeofenceStatus newStatus) {
-    _status = newStatus;
+    _applyGeofenceStatus(newStatus);
     notifyListeners();
   }
 
   void incrementTawafLap() {
-    if (_status != GeofenceStatus.inside) return;
+    if (_status != GeofenceStatus.inside ||
+        _isTawafPaused ||
+        _isTawafCompleted) {
+      return;
+    }
     if (_tawafLapCount < 7) {
       _tawafLapCount++;
       NotificationService().showNotification(
-        id: 4, title: "Tawaf Round Completed", body: "You have completed $_tawafLapCount / 7 rounds.",
+        id: 4,
+        title: "Tawaf Round Completed",
+        body: "You have completed $_tawafLapCount / 7 rounds.",
       );
+      if (_tawafLapCount == 7) {
+        _isTawafCompleted = true;
+        _isTawafPaused = false;
+        _tawafExitPromptPending = false;
+        unawaited(clearTawafProgress());
+      } else {
+        unawaited(saveTawafProgress());
+      }
     }
     notifyListeners();
   }
 
   void resetTawaf() {
     _tawafLapCount = 0;
+    _isTawafPaused = false;
+    _isTawafCompleted = false;
+    _tawafExitPromptPending = false;
+    unawaited(clearTawafProgress());
     notifyListeners();
+  }
+
+  Future<void> loadTawafProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    _tawafLapCount = prefs.getInt(_tawafLapCountKey) ?? 0;
+    _isTawafPaused = prefs.getBool(_tawafIsPausedKey) ?? false;
+    _isTawafCompleted = prefs.getBool(_tawafIsCompletedKey) ?? false;
+    _tawafExitPromptPending = false;
+    notifyListeners();
+  }
+
+  Future<void> saveTawafProgress() async {
+    await _queueTawafPersistence(_writeTawafProgress);
+  }
+
+  Future<void> _writeTawafProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_tawafLapCountKey, _tawafLapCount);
+    await prefs.setBool(_tawafIsPausedKey, _isTawafPaused);
+    await prefs.setBool(_tawafIsCompletedKey, _isTawafCompleted);
+  }
+
+  Future<void> continueTawafAfterExit() async {
+    _tawafExitPromptPending = false;
+    await saveTawafProgress();
+    notifyListeners();
+  }
+
+  Future<void> endTawafForLater() async {
+    _isTawafPaused = true;
+    _tawafExitPromptPending = false;
+    await saveTawafProgress();
+    notifyListeners();
+  }
+
+  Future<void> clearTawafProgress() async {
+    await _queueTawafPersistence(_deleteTawafProgress);
+  }
+
+  Future<void> _deleteTawafProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tawafLapCountKey);
+    await prefs.remove(_tawafIsPausedKey);
+    await prefs.remove(_tawafIsCompletedKey);
+  }
+
+  Future<void> _queueTawafPersistence(Future<void> Function() action) {
+    final nextWrite = _tawafPersistenceQueue.then((_) => action());
+    _tawafPersistenceQueue = nextWrite.catchError((_) {});
+    return nextWrite;
+  }
+
+  void _applyGeofenceStatus(GeofenceStatus newStatus) {
+    if (newStatus == _status) {
+      if (newStatus == GeofenceStatus.inside &&
+          _isTawafPaused &&
+          hasSavedTawafProgress) {
+        _isTawafPaused = false;
+        _tawafExitPromptPending = false;
+        unawaited(saveTawafProgress());
+      }
+      return;
+    }
+
+    final previousStatus = _status;
+    _status = newStatus;
+
+    if (_status == GeofenceStatus.inside) {
+      if (_isTawafPaused && hasSavedTawafProgress) {
+        _isTawafPaused = false;
+        _tawafExitPromptPending = false;
+        unawaited(saveTawafProgress());
+      }
+      NotificationService().showNotification(
+        id: 1,
+        title: "Entered Tawaf Zone",
+        body: "You are now within range of the Kaabah.",
+      );
+    } else {
+      if (previousStatus == GeofenceStatus.inside && hasSavedTawafProgress) {
+        _isTawafPaused = true;
+        _tawafExitPromptPending = true;
+        unawaited(saveTawafProgress());
+      }
+      NotificationService().showNotification(
+        id: 2,
+        title: "Left Tawaf Zone",
+        body: "Please stay close to the Kaabah.",
+      );
+    }
   }
 
   @override
@@ -200,12 +324,18 @@ class GeofenceProvider with ChangeNotifier {
     super.dispose();
   }
 
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+  double _calculateDistance(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
     var p = 0.017453292519943295;
     var c = cos;
-    var a = 0.5 - c((lat2 - lat1) * p) / 2 +
-        c(lat1 * p) * c(lat2 * p) *
-            (1 - c((lon2 - lon1) * p)) / 2;
+    var a =
+        0.5 -
+        c((lat2 - lat1) * p) / 2 +
+        c(lat1 * p) * c(lat2 * p) * (1 - c((lon2 - lon1) * p)) / 2;
     return 12742 * asin(sqrt(a)) * 1000;
   }
 }

@@ -2,18 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
-  
-  // Keys for showing UI elements without context
-  static final GlobalKey<ScaffoldMessengerState> messengerKey = GlobalKey<ScaffoldMessengerState>();
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  final FlutterLocalNotificationsPlugin _notificationsPlugin =
+      FlutterLocalNotificationsPlugin();
 
+  // Keys for showing UI elements without context
+  static final GlobalKey<ScaffoldMessengerState> messengerKey =
+      GlobalKey<ScaffoldMessengerState>();
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
 
   Future<void> init() async {
     if (kIsWeb) return; // Skip notification init on web
@@ -21,20 +22,20 @@ class NotificationService {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    const DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+    const DarwinInitializationSettings initializationSettingsIOS =
+        DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
 
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
+    const InitializationSettings initializationSettings =
+        InitializationSettings(
+          android: initializationSettingsAndroid,
+          iOS: initializationSettingsIOS,
+        );
 
-    await _notificationsPlugin.initialize(
-      initializationSettings,
-    );
+    await _notificationsPlugin.initialize(initializationSettings);
   }
 
   Future<void> showNotification({
@@ -43,36 +44,41 @@ class NotificationService {
     required String body,
   }) async {
     if (kIsWeb) {
-      print('=== TRIGGERING TOP WEB NOTIFICATION: $title - $body ===');
-      
+      debugPrint('=== TRIGGERING TOP WEB NOTIFICATION: $title - $body ===');
+
       final overlayState = navigatorKey.currentState?.overlay;
       if (overlayState != null) {
         _showTopOverlay(overlayState, title, body);
       } else {
-        print('!!! ERROR: navigatorKey.currentState?.overlay is NULL !!!');
+        debugPrint('!!! ERROR: navigatorKey.currentState?.overlay is NULL !!!');
       }
       return;
     }
 
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'umrah_guide_channel',
-      'Umrah Guide Notifications',
-      channelDescription: 'Alerts for Umrah rituals and geofencing',
-      importance: Importance.max,
-      priority: Priority.high,
-      ticker: 'ticker',
-    );
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'umrah_guide_channel',
+          'Umrah Guide Notifications',
+          channelDescription: 'Alerts for Umrah rituals and geofencing',
+          importance: Importance.max,
+          priority: Priority.high,
+          ticker: 'ticker',
+        );
 
     const NotificationDetails platformDetails = NotificationDetails(
       android: androidDetails,
       iOS: DarwinNotificationDetails(),
     );
 
-    await _notificationsPlugin.show(id, title, body, platformDetails);
+    try {
+      await _notificationsPlugin.show(id, title, body, platformDetails);
+    } catch (e) {
+      debugPrint('Notification delivery skipped: $e');
+    }
   }
 
   void _showTopOverlay(OverlayState overlay, String title, String body) {
-    print('--- INSERTING OVERLAY ENTRY ---');
+    debugPrint('--- INSERTING OVERLAY ENTRY ---');
     late OverlayEntry entry;
 
     entry = OverlayEntry(
@@ -114,7 +120,10 @@ class NotificationService {
                       ),
                       Text(
                         body,
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -11,25 +13,40 @@ class TawafSimulatorView extends StatefulWidget {
   State<TawafSimulatorView> createState() => _TawafSimulatorViewState();
 }
 
-class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProviderStateMixin {
+class _TawafSimulatorViewState extends State<TawafSimulatorView>
+    with TickerProviderStateMixin {
   final MapController _mapController = MapController();
   bool _isMapReady = false;
+  bool _isTawafExitDialogVisible = false;
 
   void _animatedMapMove(LatLng destLocation, double destZoom) {
     final latTween = Tween<double>(
-        begin: _mapController.camera.center.latitude, end: destLocation.latitude);
+      begin: _mapController.camera.center.latitude,
+      end: destLocation.latitude,
+    );
     final lngTween = Tween<double>(
-        begin: _mapController.camera.center.longitude, end: destLocation.longitude);
-    final zoomTween = Tween<double>(begin: _mapController.camera.zoom, end: destZoom);
+      begin: _mapController.camera.center.longitude,
+      end: destLocation.longitude,
+    );
+    final zoomTween = Tween<double>(
+      begin: _mapController.camera.zoom,
+      end: destZoom,
+    );
 
     final controller = AnimationController(
-        duration: const Duration(milliseconds: 500), vsync: this);
-    final animation = CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    final animation = CurvedAnimation(
+      parent: controller,
+      curve: Curves.fastOutSlowIn,
+    );
 
     controller.addListener(() {
       _mapController.move(
-          LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
-          zoomTween.evaluate(animation));
+        LatLng(latTween.evaluate(animation), lngTween.evaluate(animation)),
+        zoomTween.evaluate(animation),
+      );
     });
 
     animation.addStatusListener((status) {
@@ -48,41 +65,59 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<GeofenceProvider>();
-      provider.startTracking();
-      
+      unawaited(provider.loadTawafProgress());
+      unawaited(provider.startTracking());
+
       // Auto-follow listener
       provider.addListener(_onPositionUpdate);
+      provider.addListener(_onTawafRecoveryUpdate);
     });
   }
 
   @override
   void dispose() {
     // Crucial: Remove listener to prevent memory leaks and crashes
-    context.read<GeofenceProvider>().removeListener(_onPositionUpdate);
+    final provider = context.read<GeofenceProvider>();
+    provider.removeListener(_onPositionUpdate);
+    provider.removeListener(_onTawafRecoveryUpdate);
     super.dispose();
   }
 
   void _onPositionUpdate() {
     if (!mounted || !_isMapReady) return;
-    
+
     final geofence = context.read<GeofenceProvider>();
     if (geofence.currentPosition != null) {
       final userLatLng = LatLng(
-        geofence.currentPosition!.latitude, 
-        geofence.currentPosition!.longitude
+        geofence.currentPosition!.latitude,
+        geofence.currentPosition!.longitude,
       );
-      
+
       // Only move camera if significant distance changed to avoid micro-jitter
       double dist = const Distance().as(
-        LengthUnit.Meter, 
-        _mapController.camera.center, 
-        userLatLng
+        LengthUnit.Meter,
+        _mapController.camera.center,
+        userLatLng,
       );
-      
+
       if (dist > 0.5) {
         _animatedMapMove(userLatLng, _mapController.camera.zoom);
       }
     }
+  }
+
+  void _onTawafRecoveryUpdate() {
+    if (!mounted || _isTawafExitDialogVisible) return;
+
+    final geofence = context.read<GeofenceProvider>();
+    if (!geofence.shouldShowTawafExitPrompt) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _isTawafExitDialogVisible) return;
+      final latest = context.read<GeofenceProvider>();
+      if (!latest.shouldShowTawafExitPrompt) return;
+      _showTawafExitDialog();
+    });
   }
 
   @override
@@ -94,10 +129,16 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
     final isGpsNull = geofence.currentPosition == null;
     final userLatLng = isGpsNull
         ? const LatLng(21.4225, 39.8262)
-        : LatLng(geofence.currentPosition!.latitude, geofence.currentPosition!.longitude);
-    
+        : LatLng(
+            geofence.currentPosition!.latitude,
+            geofence.currentPosition!.longitude,
+          );
+
     final kaabahLatLng = geofence.kaabahPosition != null
-        ? LatLng(geofence.kaabahPosition!.latitude, geofence.kaabahPosition!.longitude)
+        ? LatLng(
+            geofence.kaabahPosition!.latitude,
+            geofence.kaabahPosition!.longitude,
+          )
         : const LatLng(21.4225, 39.8262);
 
     return Scaffold(
@@ -115,9 +156,16 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
               color: Colors.orange.shade100,
               child: const Row(
                 children: [
-                  SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                   SizedBox(width: 12),
-                  Text("Acquiring GPS signal...", style: TextStyle(fontSize: 12)),
+                  Text(
+                    "Acquiring GPS signal...",
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ],
               ),
             ),
@@ -148,25 +196,31 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
                       });
                     },
                     onTap: (tapPos, point) {
-                      context.read<GeofenceProvider>().setManualKaabahPoint(point.latitude, point.longitude);
+                      context.read<GeofenceProvider>().setManualKaabahPoint(
+                        point.latitude,
+                        point.longitude,
+                      );
                     },
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.mish.my_umrah_guide',
-                      keepBuffer: 3, // Fixes AbortError on web by buffering tiles
+                      keepBuffer:
+                          3, // Fixes AbortError on web by buffering tiles
                     ),
                     if (geofence.kaabahPosition != null)
                       CircleLayer(
                         circles: [
                           CircleMarker(
-                            point: kaabahLatLng, 
+                            point: kaabahLatLng,
                             color: geofence.status == GeofenceStatus.inside
                                 ? primaryColor.withValues(alpha: 0.1)
                                 : Colors.transparent,
                             borderStrokeWidth: 2,
-                            borderColor: geofence.status == GeofenceStatus.inside
+                            borderColor:
+                                geofence.status == GeofenceStatus.inside
                                 ? primaryColor.withValues(alpha: 0.5)
                                 : Colors.grey.withValues(alpha: 0.4),
                             useRadiusInMeter: true,
@@ -181,14 +235,22 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
                             point: kaabahLatLng,
                             width: 40,
                             height: 40,
-                            child: const Icon(Icons.location_on, color: Colors.black, size: 40),
+                            child: const Icon(
+                              Icons.location_on,
+                              color: Colors.black,
+                              size: 40,
+                            ),
                           ),
                         if (!isGpsNull) // Only show user pin if GPS is acquired
                           Marker(
                             point: userLatLng,
                             width: 40,
                             height: 40,
-                            child: const Icon(Icons.person_pin_circle, color: Colors.blue, size: 40),
+                            child: const Icon(
+                              Icons.person_pin_circle,
+                              color: Colors.blue,
+                              size: 40,
+                            ),
                           ),
                       ],
                     ),
@@ -199,15 +261,18 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
                   top: 70,
                   right: 16,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.6),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      geofence.currentPosition != null 
-                        ? "${geofence.currentPosition!.latitude.toStringAsFixed(4)}, ${geofence.currentPosition!.longitude.toStringAsFixed(4)}"
-                        : "No GPS Data",
+                      geofence.currentPosition != null
+                          ? "${geofence.currentPosition!.latitude.toStringAsFixed(4)}, ${geofence.currentPosition!.longitude.toStringAsFixed(4)}"
+                          : "No GPS Data",
                       style: const TextStyle(color: Colors.white, fontSize: 10),
                     ),
                   ),
@@ -231,21 +296,30 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
                   left: 16,
                   right: 16,
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.3),
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.3,
+                    ),
                     child: SingleChildScrollView(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (geofence.kaabahPosition == null)
                             ElevatedButton.icon(
-                              onPressed: () => context.read<GeofenceProvider>().setKaabahPoint(),
+                              onPressed: () => context
+                                  .read<GeofenceProvider>()
+                                  .setKaabahPoint(),
                               icon: const Icon(Icons.location_on),
                               label: const Text('Set Kaabah Location Here'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: primaryColor,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 20,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
                             ),
                           const SizedBox(height: 8),
@@ -270,7 +344,12 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
     IconData icon = Icons.info_outline;
 
     if (geofence.kaabahPosition != null) {
-      if (geofence.status == GeofenceStatus.inside) {
+      if (geofence.isTawafPaused) {
+        message = "TAWAF PAUSED - RE-ENTER ZONE TO CONTINUE";
+        bgColor = Colors.orange.shade50;
+        textColor = Colors.orange.shade800;
+        icon = Icons.pause_circle_filled;
+      } else if (geofence.status == GeofenceStatus.inside) {
         message = "YOU ARE INSIDE THE TAWAF ZONE";
         bgColor = Theme.of(context).colorScheme.primary.withValues(alpha: 0.1);
         textColor = Theme.of(context).colorScheme.primary;
@@ -287,8 +366,6 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
         icon = Icons.warning_amber_rounded;
       }
     }
-
-
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
@@ -338,7 +415,10 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
                   color: Theme.of(context).colorScheme.primary,
                 ),
               ),
-              const Text(" / 7", style: TextStyle(fontSize: 16, color: Colors.grey)),
+              const Text(
+                " / 7",
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
             ],
           ),
         ],
@@ -359,21 +439,30 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
         children: [
           const Text(
             'SIMULATION DEMO',
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey,
+            ),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               TextButton(
-                onPressed: () => context.read<GeofenceProvider>().simulateStatus(GeofenceStatus.inside),
+                onPressed: () => context
+                    .read<GeofenceProvider>()
+                    .simulateStatus(GeofenceStatus.inside),
                 child: const Text('Enter', style: TextStyle(fontSize: 12)),
               ),
               TextButton(
-                onPressed: () => context.read<GeofenceProvider>().simulateStatus(GeofenceStatus.outside),
+                onPressed: () => context
+                    .read<GeofenceProvider>()
+                    .simulateStatus(GeofenceStatus.outside),
                 child: const Text('Exit', style: TextStyle(fontSize: 12)),
               ),
               TextButton(
-                onPressed: () => context.read<GeofenceProvider>().incrementTawafLap(),
+                onPressed: () =>
+                    context.read<GeofenceProvider>().incrementTawafLap(),
                 child: const Text('Next', style: TextStyle(fontSize: 12)),
               ),
             ],
@@ -381,5 +470,50 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView> with TickerProv
         ],
       ),
     );
+  }
+
+  Future<void> _showTawafExitDialog() async {
+    _isTawafExitDialogVisible = true;
+    final geofence = context.read<GeofenceProvider>();
+
+    try {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Tawaf paused'),
+            content: Text(
+              'You left the Tawaf zone at ${geofence.tawafLapCount} / 7 rounds. '
+              'Continue will keep your progress and resume counting once you re-enter the zone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  await context.read<GeofenceProvider>().endTawafForLater();
+                  if (!dialogContext.mounted) return;
+                  Navigator.of(dialogContext).pop();
+                  if (!mounted) return;
+                  Navigator.of(context).pop();
+                },
+                child: const Text('End'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  await context
+                      .read<GeofenceProvider>()
+                      .continueTawafAfterExit();
+                  if (!dialogContext.mounted) return;
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text('Continue'),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      _isTawafExitDialogVisible = false;
+    }
   }
 }
