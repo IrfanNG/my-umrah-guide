@@ -25,8 +25,8 @@
   - [ ] Block Tawaf access until Miqat/Niyyah is cleared.
   - [ ] Block Sa'i access until Tawaf (Checkpoint) is completed.
 - [ ] **Tawaf Persistence & Recovery**: If user exits radius, prompt 'Continue/End'. Save state if 'End' to allow resumption. [NEW]
-- [ ] **Sa'i Trip Logic**: User must reach both Safa and Marwa to count as 1 lap. [NEW]
-- [ ] **Ritual Guidance UI**: Auto-display contextual Du'a, Niyyah, and step-by-step instructions when a geofence is triggered. (In-App Popup/Display). [REFINED]
+- [x] **Sa'i Trip Logic**: User must reach both Safa and Marwa to count as 1 lap. [NEW]
+- [x] **Ritual Guidance UI**: Auto-display contextual Du'a, Niyyah, and step-by-step instructions when a geofence is triggered. (In-App Popup/Display). [REFINED]
 
 ---
 
@@ -49,4 +49,4 @@
 - [ ] **UI Polish (Rank S)**: Finalize animations, typography, and "Clean Light" aesthetic.
 
 ---
-*Last Updated: 29 April 2026 by Jargon (Squad)*
+*Last Updated: 30 April 2026 by Jargon (Squad)*

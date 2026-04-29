@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../guidance/ritual_guidance_sheet.dart';
 import '../geofence_provider.dart';
 
 class TawafSimulatorView extends StatefulWidget {
@@ -18,6 +19,7 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
   final MapController _mapController = MapController();
   bool _isMapReady = false;
   bool _isTawafExitDialogVisible = false;
+  bool _isGuidanceSheetVisible = false;
 
   void _animatedMapMove(LatLng destLocation, double destZoom) {
     final latTween = Tween<double>(
@@ -71,6 +73,7 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
       // Auto-follow listener
       provider.addListener(_onPositionUpdate);
       provider.addListener(_onTawafRecoveryUpdate);
+      provider.addListener(_onGuidanceUpdate);
     });
   }
 
@@ -80,6 +83,7 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
     final provider = context.read<GeofenceProvider>();
     provider.removeListener(_onPositionUpdate);
     provider.removeListener(_onTawafRecoveryUpdate);
+    provider.removeListener(_onGuidanceUpdate);
     super.dispose();
   }
 
@@ -117,6 +121,29 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
       final latest = context.read<GeofenceProvider>();
       if (!latest.shouldShowTawafExitPrompt) return;
       _showTawafExitDialog();
+    });
+  }
+
+  void _onGuidanceUpdate() {
+    if (!mounted || _isGuidanceSheetVisible || _isTawafExitDialogVisible) {
+      return;
+    }
+
+    final geofence = context.read<GeofenceProvider>();
+    if (geofence.shouldShowTawafExitPrompt ||
+        geofence.pendingGuidance == null) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _isGuidanceSheetVisible || _isTawafExitDialogVisible) {
+        return;
+      }
+      final latest = context.read<GeofenceProvider>();
+      if (latest.shouldShowTawafExitPrompt || latest.pendingGuidance == null) {
+        return;
+      }
+      _showGuidanceSheet();
     });
   }
 
@@ -514,6 +541,30 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
       );
     } finally {
       _isTawafExitDialogVisible = false;
+    }
+  }
+
+  Future<void> _showGuidanceSheet() async {
+    final guidance = context.read<GeofenceProvider>().pendingGuidance;
+    if (guidance == null) return;
+
+    _isGuidanceSheetVisible = true;
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: false,
+        isScrollControlled: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (_) => RitualGuidanceSheet(guidance: guidance),
+      );
+    } finally {
+      if (mounted) {
+        context.read<GeofenceProvider>().consumeGuidance();
+      }
+      _isGuidanceSheetVisible = false;
     }
   }
 }

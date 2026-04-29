@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_umrah_guide/features/practice/presentation/geofence_provider.dart';
+import 'package:my_umrah_guide/features/practice/presentation/guidance/ritual_guidance.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -79,5 +80,39 @@ void main() {
     expect(provider.isTawafCompleted, isTrue);
     expect(restoredProvider.tawafLapCount, 0);
     expect(restoredProvider.hasSavedTawafProgress, isFalse);
+  });
+
+  test('emits tawaf start guidance once per session', () {
+    final provider = GeofenceProvider();
+
+    provider.simulateStatus(GeofenceStatus.inside);
+
+    expect(provider.pendingGuidance?.id, RitualGuidanceCatalog.tawafStart.id);
+
+    provider.consumeGuidance();
+    provider.simulateStatus(GeofenceStatus.outside);
+    provider.simulateStatus(GeofenceStatus.inside);
+
+    expect(provider.pendingGuidance, isNull);
+  });
+
+  test('emits tawaf round and completion guidance', () {
+    final provider = GeofenceProvider();
+
+    provider.simulateStatus(GeofenceStatus.inside);
+    provider.consumeGuidance();
+    provider.incrementTawafLap();
+
+    expect(provider.pendingGuidance?.id, RitualGuidanceCatalog.tawafRound.id);
+
+    provider.consumeGuidance();
+    for (var i = 1; i < 7; i++) {
+      provider.incrementTawafLap();
+    }
+
+    expect(
+      provider.pendingGuidance?.id,
+      RitualGuidanceCatalog.tawafComplete.id,
+    );
   });
 }

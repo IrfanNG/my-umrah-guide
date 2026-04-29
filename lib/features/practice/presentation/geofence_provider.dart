@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/services/notification_service.dart';
+import 'guidance/ritual_guidance.dart';
 
 enum GeofenceStatus { initial, inside, outside }
 
@@ -28,6 +29,8 @@ class GeofenceProvider with ChangeNotifier {
   bool _isTawafPaused = false;
   bool _isTawafCompleted = false;
   bool _tawafExitPromptPending = false;
+  RitualGuidance? _pendingGuidance;
+  final Set<String> _shownGuidanceIds = <String>{};
   Future<void> _tawafPersistenceQueue = Future<void>.value();
   StreamSubscription<Position>? _positionStream;
 
@@ -42,6 +45,7 @@ class GeofenceProvider with ChangeNotifier {
   bool get isTawafCompleted => _isTawafCompleted;
   bool get hasSavedTawafProgress => _tawafLapCount > 0 && _tawafLapCount < 7;
   bool get shouldShowTawafExitPrompt => _tawafExitPromptPending;
+  RitualGuidance? get pendingGuidance => _pendingGuidance;
 
   // Set the reference point (Kaabah) to current user location
   Future<void> setKaabahPoint() async {
@@ -139,6 +143,7 @@ class GeofenceProvider with ChangeNotifier {
           body:
               "You are within 150m of the Kaabah. Please prepare your Niyyah.",
         );
+        _queueGuidance(RitualGuidanceCatalog.miqatNiyyah);
       } else if (_distance > _miqatRadius) {
         _miqatTriggered = false;
       }
@@ -211,11 +216,18 @@ class GeofenceProvider with ChangeNotifier {
         _isTawafCompleted = true;
         _isTawafPaused = false;
         _tawafExitPromptPending = false;
+        _queueGuidance(RitualGuidanceCatalog.tawafComplete);
         unawaited(clearTawafProgress());
       } else {
+        _queueGuidance(RitualGuidanceCatalog.tawafRound);
         unawaited(saveTawafProgress());
       }
     }
+    notifyListeners();
+  }
+
+  void consumeGuidance() {
+    _pendingGuidance = null;
     notifyListeners();
   }
 
@@ -229,7 +241,8 @@ class GeofenceProvider with ChangeNotifier {
   }
 
   Future<void> loadTawafProgress() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefsSafely();
+    if (prefs == null) return;
     _tawafLapCount = prefs.getInt(_tawafLapCountKey) ?? 0;
     _isTawafPaused = prefs.getBool(_tawafIsPausedKey) ?? false;
     _isTawafCompleted = prefs.getBool(_tawafIsCompletedKey) ?? false;
@@ -242,7 +255,8 @@ class GeofenceProvider with ChangeNotifier {
   }
 
   Future<void> _writeTawafProgress() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefsSafely();
+    if (prefs == null) return;
     await prefs.setInt(_tawafLapCountKey, _tawafLapCount);
     await prefs.setBool(_tawafIsPausedKey, _isTawafPaused);
     await prefs.setBool(_tawafIsCompletedKey, _isTawafCompleted);
@@ -266,7 +280,8 @@ class GeofenceProvider with ChangeNotifier {
   }
 
   Future<void> _deleteTawafProgress() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefsSafely();
+    if (prefs == null) return;
     await prefs.remove(_tawafLapCountKey);
     await prefs.remove(_tawafIsPausedKey);
     await prefs.remove(_tawafIsCompletedKey);
@@ -276,6 +291,15 @@ class GeofenceProvider with ChangeNotifier {
     final nextWrite = _tawafPersistenceQueue.then((_) => action());
     _tawafPersistenceQueue = nextWrite.catchError((_) {});
     return nextWrite;
+  }
+
+  Future<SharedPreferences?> _getPrefsSafely() async {
+    try {
+      return await SharedPreferences.getInstance();
+    } catch (e) {
+      debugPrint('Tawaf local persistence unavailable: $e');
+      return null;
+    }
   }
 
   void _applyGeofenceStatus(GeofenceStatus newStatus) {
@@ -304,6 +328,7 @@ class GeofenceProvider with ChangeNotifier {
         title: "Entered Tawaf Zone",
         body: "You are now within range of the Kaabah.",
       );
+      _queueGuidance(RitualGuidanceCatalog.tawafStart);
     } else {
       if (previousStatus == GeofenceStatus.inside && hasSavedTawafProgress) {
         _isTawafPaused = true;
@@ -316,6 +341,12 @@ class GeofenceProvider with ChangeNotifier {
         body: "Please stay close to the Kaabah.",
       );
     }
+  }
+
+  void _queueGuidance(RitualGuidance guidance) {
+    if (_shownGuidanceIds.contains(guidance.id)) return;
+    _shownGuidanceIds.add(guidance.id);
+    _pendingGuidance = guidance;
   }
 
   @override
