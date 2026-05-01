@@ -1,16 +1,22 @@
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:my_umrah_guide/main.dart';
+import 'package:my_umrah_guide/features/practice/domain/user_profile.dart';
 
 void main() {
-  testWidgets('shows the MyUmrahGuide splash screen', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const MyUmrahGuide());
+  test('maps user profile age into analytics age group', () {
+    UserProfile profileWithAge(int age) {
+      return UserProfile(
+        uid: 'u1',
+        email: 'user@example.com',
+        role: UserRole.user,
+        age: age,
+        abilityLevel: AbilityLevel.medium,
+        healthConditions: '',
+      );
+    }
 
-    expect(find.text('MyUmrahGuide'), findsOneWidget);
-    expect(find.text('Your Digital Umrah Companion'), findsOneWidget);
-
-    await tester.pump(const Duration(seconds: 2));
+    expect(profileWithAge(24).ageGroup, '18-29');
+    expect(profileWithAge(36).ageGroup, '30-44');
+    expect(profileWithAge(52).ageGroup, '45-59');
+    expect(profileWithAge(67).ageGroup, '60+');
   });
 }

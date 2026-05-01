@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../../domain/ritual_recommendation.dart';
 import '../guidance/ritual_guidance_sheet.dart';
+import '../recommendation_controller.dart';
 import '../sai_provider.dart';
+import '../widgets/recommendation_panel.dart';
 
 class SaiSimulatorView extends StatefulWidget {
   const SaiSimulatorView({super.key});
@@ -72,6 +77,7 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
       // Auto-follow listener
       provider.addListener(_onPositionUpdate);
       provider.addListener(_onGuidanceUpdate);
+      provider.addListener(_onSaiCompletionUpdate);
     });
   }
 
@@ -81,7 +87,19 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
     final provider = context.read<SaiProvider>();
     provider.removeListener(_onPositionUpdate);
     provider.removeListener(_onGuidanceUpdate);
+    provider.removeListener(_onSaiCompletionUpdate);
     super.dispose();
+  }
+
+  void _onSaiCompletionUpdate() {
+    if (!mounted) return;
+    final sai = context.read<SaiProvider>();
+    unawaited(
+      context.read<RecommendationController>().logCompletionOnce(
+            ritualType: RitualType.sai,
+            completedUnits: sai.saiLapCount,
+          ),
+    );
   }
 
   void _onPositionUpdate() {
@@ -183,6 +201,7 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
               ),
             ),
           _buildTargetBanner(context, sai),
+          const RecommendationPanel(ritualType: RitualType.sai),
           _buildLapCounter(context, sai),
           _buildCurrentLapProgress(context, sai),
           Expanded(

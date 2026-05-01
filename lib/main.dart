@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'firebase_options.dart';
 import 'features/practice/presentation/geofence_provider.dart';
-import 'features/practice/presentation/pages/splash_view.dart';
+import 'features/practice/presentation/auth_controller.dart';
+import 'features/practice/presentation/pages/auth_gate.dart';
 import 'features/practice/presentation/pages/login_guest_view.dart';
-import 'features/practice/presentation/pages/dashboard_view.dart';
 import 'features/practice/presentation/pages/tawaf_simulator_view.dart';
 import 'features/practice/presentation/pages/sai_simulator_view.dart';
+import 'features/practice/presentation/profile_controller.dart';
+import 'features/practice/presentation/recommendation_controller.dart';
+import 'features/practice/presentation/ritual_progress_controller.dart';
 import 'features/practice/presentation/sai_provider.dart';
 import 'core/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await NotificationService().init();
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthController()),
+        ChangeNotifierProvider(create: (_) => ProfileController()),
+        ChangeNotifierProvider(create: (_) => RecommendationController()),
+        ChangeNotifierProvider(create: (_) => RitualProgressController()),
         ChangeNotifierProvider(create: (_) => GeofenceProvider()),
         ChangeNotifierProvider(create: (_) => SaiProvider()),
       ],
@@ -53,12 +63,32 @@ class MyUmrahGuide extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const SplashView(),
+        '/': (context) => const AuthGate(),
         '/login': (context) => const LoginGuestView(),
-        '/dashboard': (context) => const DashboardView(),
+        '/admin': (context) => const AuthGate(),
+        '/dashboard': (context) => const _DashboardRouteFallback(),
+        '/profile': (context) => const _ProfileRouteFallback(),
         '/tawaf-simulator': (context) => const TawafSimulatorView(),
         '/sai-simulator': (context) => const SaiSimulatorView(),
       },
     );
+  }
+}
+
+class _DashboardRouteFallback extends StatelessWidget {
+  const _DashboardRouteFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return const AuthGate();
+  }
+}
+
+class _ProfileRouteFallback extends StatelessWidget {
+  const _ProfileRouteFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return const AuthGate();
   }
 }

@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../../domain/ritual_recommendation.dart';
 import '../guidance/ritual_guidance_sheet.dart';
 import '../geofence_provider.dart';
+import '../recommendation_controller.dart';
+import '../ritual_progress_controller.dart';
+import '../widgets/recommendation_panel.dart';
 
 class TawafSimulatorView extends StatefulWidget {
   const TawafSimulatorView({super.key});
@@ -74,6 +78,7 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
       provider.addListener(_onPositionUpdate);
       provider.addListener(_onTawafRecoveryUpdate);
       provider.addListener(_onGuidanceUpdate);
+      provider.addListener(_onTawafCompletionUpdate);
     });
   }
 
@@ -84,7 +89,21 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
     provider.removeListener(_onPositionUpdate);
     provider.removeListener(_onTawafRecoveryUpdate);
     provider.removeListener(_onGuidanceUpdate);
+    provider.removeListener(_onTawafCompletionUpdate);
     super.dispose();
+  }
+
+  void _onTawafCompletionUpdate() {
+    if (!mounted) return;
+    final geofence = context.read<GeofenceProvider>();
+    if (!geofence.isTawafCompleted) return;
+    unawaited(context.read<RitualProgressController>().markTawafCompleted());
+    unawaited(
+      context.read<RecommendationController>().logCompletionOnce(
+            ritualType: RitualType.tawaf,
+            completedUnits: geofence.tawafLapCount,
+          ),
+    );
   }
 
   void _onPositionUpdate() {
@@ -208,6 +227,7 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
             ),
           ),
           _buildStatusBanner(context, geofence),
+          const RecommendationPanel(ritualType: RitualType.tawaf),
           _buildLapCounter(context, geofence),
           Expanded(
             child: Stack(

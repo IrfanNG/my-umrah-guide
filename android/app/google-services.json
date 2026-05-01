@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "724891959035",
+    "project_id": "myumrahguide-nisa",
+    "storage_bucket": "myumrahguide-nisa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:724891959035:android:cead9a698ca3676f397a5e",
+        "android_client_info": {
+          "package_name": "com.mish.my_umrah_guide"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCsmxHBoisJ-nndhbDUVlrNAvJWPDcPBtE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
