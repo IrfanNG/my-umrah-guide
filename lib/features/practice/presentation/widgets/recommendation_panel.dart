@@ -19,8 +19,8 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<RecommendationController>().loadRecommendation(
-            widget.ritualType,
-          );
+        widget.ritualType,
+      );
     });
   }
 
@@ -30,6 +30,7 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
     final recommendation = controller.recommendationFor(widget.ritualType);
     final profile = controller.profileFor(widget.ritualType);
     final isLoading = controller.isLoading(widget.ritualType);
+    final syncMessage = controller.syncMessage;
 
     if (isLoading && recommendation == null) {
       return const LinearProgressIndicator(minHeight: 2);
@@ -72,8 +73,8 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
                 onPressed: isLoading
                     ? null
                     : () => context
-                        .read<RecommendationController>()
-                        .refreshRecommendation(widget.ritualType),
+                          .read<RecommendationController>()
+                          .refreshRecommendation(widget.ritualType),
                 icon: const Icon(Icons.refresh, size: 18),
               ),
             ],
@@ -117,6 +118,16 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
             Text(
               recommendation.advice,
               style: TextStyle(color: Colors.grey.shade800, height: 1.35),
+            ),
+          ],
+          if (controller.isCached(widget.ritualType) ||
+              syncMessage != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              controller.isCached(widget.ritualType)
+                  ? 'Cached recommendation shown while refreshing.'
+                  : syncMessage!,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
           ],
         ],

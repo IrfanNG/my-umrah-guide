@@ -11,9 +11,9 @@ class RecommendationRepository {
     FirebaseFirestore? firestore,
     http.Client? client,
     String? baseUrl,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? 'http://127.0.0.1:8000';
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _client = client ?? http.Client(),
+       _baseUrl = baseUrl ?? 'http://127.0.0.1:8000';
 
   final FirebaseFirestore _firestore;
   final http.Client _client;
@@ -55,7 +55,21 @@ class RecommendationRepository {
     required RitualRecommendation recommendation,
     required UserProfile profile,
   }) {
-    return _firestore.collection('recommendations').add({
+    return saveRecommendationPayload(
+      buildRecommendationPayload(
+        uid: uid,
+        recommendation: recommendation,
+        profile: profile,
+      ),
+    );
+  }
+
+  Map<String, dynamic> buildRecommendationPayload({
+    required String uid,
+    required RitualRecommendation recommendation,
+    required UserProfile profile,
+  }) {
+    return {
       'uid': uid,
       'ritualType': recommendation.ritualType.name,
       'inputProfileSnapshot': {
@@ -65,6 +79,12 @@ class RecommendationRepository {
         'hasHealthConditions': profile.healthConditions.trim().isNotEmpty,
       },
       'modelOutput': recommendation.toJson(),
+    };
+  }
+
+  Future<void> saveRecommendationPayload(Map<String, dynamic> payload) {
+    return _firestore.collection('recommendations').add({
+      ...payload,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -76,8 +96,8 @@ class RecommendationRepository {
     final ageFactor = profile.age >= 60
         ? 0.68
         : profile.age >= 45
-            ? 0.8
-            : 1.0;
+        ? 0.8
+        : 1.0;
     final abilityFactor = switch (profile.abilityLevel) {
       AbilityLevel.low => 0.72,
       AbilityLevel.medium => 0.88,

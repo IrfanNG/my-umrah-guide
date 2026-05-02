@@ -4,10 +4,12 @@ import 'package:provider/provider.dart';
 
 import '../../domain/user_profile.dart';
 import '../auth_controller.dart';
+import '../privacy_consent_controller.dart';
 import '../profile_controller.dart';
 import 'admin_dashboard_view.dart';
 import 'dashboard_view.dart';
 import 'login_guest_view.dart';
+import 'privacy_consent_view.dart';
 import 'profile_setup_view.dart';
 
 class AuthGate extends StatelessWidget {
@@ -38,7 +40,18 @@ class AuthGate extends StatelessWidget {
             if (profile.role == UserRole.admin) {
               return const AdminDashboardView();
             }
-            return DashboardView(profile: profile);
+            return Consumer<PrivacyConsentController>(
+              builder: (context, consent, _) {
+                if (!consent.isLoaded) {
+                  consent.load();
+                  return const _GateLoading();
+                }
+                if (!consent.hasLocationConsent) {
+                  return const PrivacyConsentView();
+                }
+                return DashboardView(profile: profile);
+              },
+            );
           },
         );
       },
@@ -51,8 +64,6 @@ class _GateLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

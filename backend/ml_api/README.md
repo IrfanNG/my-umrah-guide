@@ -23,3 +23,12 @@ POST /predict
   "healthConditions": "knee pain"
 }
 ```
+
+## Crowd Density
+
+```text
+GET /crowd-density?ritualType=tawaf
+GET /crowd-density?ritualType=sai&hour=13
+```
+
+Returns demo-safe crowd level, density score, recommended timing window, and rerouting advice for adaptive scheduling.

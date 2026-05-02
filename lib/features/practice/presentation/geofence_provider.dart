@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/services/notification_service.dart';
 import 'guidance/ritual_guidance.dart';
+import 'privacy_consent_controller.dart';
 
 enum GeofenceStatus { initial, inside, outside }
 
@@ -49,6 +50,8 @@ class GeofenceProvider with ChangeNotifier {
 
   // Set the reference point (Kaabah) to current user location
   Future<void> setKaabahPoint() async {
+    if (!await PrivacyConsentController.hasAcceptedLocationConsent()) return;
+
     // Optimization: Use cached stream position for instant feedback
     if (_currentPosition != null) {
       _kaabahPosition = _currentPosition;
@@ -160,6 +163,7 @@ class GeofenceProvider with ChangeNotifier {
   // Real-time Tracking
   Future<void> startTracking() async {
     if (_positionStream != null) return; // Already tracking
+    if (!await PrivacyConsentController.hasAcceptedLocationConsent()) return;
 
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;

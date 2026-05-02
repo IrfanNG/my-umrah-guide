@@ -97,6 +97,19 @@ class RitualSessionLog {
   final double durationMinutes;
   final Map<String, dynamic> recommendationSnapshot;
 
+  Map<String, dynamic> toJson() {
+    return {
+      'uid': uid,
+      'ritualType': ritualType.name,
+      'ageGroup': ageGroup,
+      'abilityLevel': abilityLevel,
+      'distanceMeters': distanceMeters,
+      'averagePaceMps': averagePaceMps,
+      'durationMinutes': durationMinutes,
+      'recommendationSnapshot': recommendationSnapshot,
+    };
+  }
+
   Map<String, dynamic> toFirestore() {
     return {
       'uid': uid,
@@ -112,5 +125,20 @@ class RitualSessionLog {
       'recommendationSnapshot': recommendationSnapshot,
       'createdAt': FieldValue.serverTimestamp(),
     };
+  }
+
+  factory RitualSessionLog.fromJson(Map<String, dynamic> json) {
+    return RitualSessionLog(
+      uid: json['uid'] as String? ?? '',
+      ritualType: RitualType.fromValue(json['ritualType'] as String?),
+      ageGroup: json['ageGroup'] as String? ?? 'Unknown',
+      abilityLevel: json['abilityLevel'] as String? ?? 'medium',
+      distanceMeters: (json['distanceMeters'] as num?)?.toDouble() ?? 0,
+      averagePaceMps: (json['averagePaceMps'] as num?)?.toDouble() ?? 0,
+      durationMinutes: (json['durationMinutes'] as num?)?.toDouble() ?? 0,
+      recommendationSnapshot: Map<String, dynamic>.from(
+        json['recommendationSnapshot'] as Map? ?? <String, dynamic>{},
+      ),
+    );
   }
 }

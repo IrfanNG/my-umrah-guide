@@ -3,12 +3,15 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'features/practice/presentation/geofence_provider.dart';
+import 'features/practice/presentation/adaptive_schedule_controller.dart';
 import 'features/practice/presentation/auth_controller.dart';
+import 'features/practice/presentation/background_geofence_controller.dart';
 import 'features/practice/presentation/pages/auth_gate.dart';
 import 'features/practice/presentation/pages/login_guest_view.dart';
 import 'features/practice/presentation/pages/tawaf_simulator_view.dart';
 import 'features/practice/presentation/pages/sai_simulator_view.dart';
 import 'features/practice/presentation/profile_controller.dart';
+import 'features/practice/presentation/privacy_consent_controller.dart';
 import 'features/practice/presentation/recommendation_controller.dart';
 import 'features/practice/presentation/ritual_progress_controller.dart';
 import 'features/practice/presentation/sai_provider.dart';
@@ -22,7 +25,10 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthController()),
+        ChangeNotifierProvider(create: (_) => AdaptiveScheduleController()),
+        ChangeNotifierProvider(create: (_) => BackgroundGeofenceController()),
         ChangeNotifierProvider(create: (_) => ProfileController()),
+        ChangeNotifierProvider(create: (_) => PrivacyConsentController()),
         ChangeNotifierProvider(create: (_) => RecommendationController()),
         ChangeNotifierProvider(create: (_) => RitualProgressController()),
         ChangeNotifierProvider(create: (_) => GeofenceProvider()),

@@ -48,16 +48,16 @@ Legend:
 - [x] **Session Analytics Logging**: Save completed Tawaf/Sa'i analytics under `ritual_sessions`.
 - [x] **Firestore Security Rules**: Restrict users to their profile/recommendations and admin-only analytics reads.
 - [x] **Local Random Forest API**: FastAPI + scikit-learn service scaffolded under `backend/ml_api`.
-- [~] **Offline Caching**: Tawaf progress is cached locally with `shared_preferences`; mode preferences and backend sync caching are not implemented.
+- [x] **Offline Caching**: Tawaf progress, mode preferences, recommendation snapshots, and pending backend sync writes are cached locally with `shared_preferences`.
 
 ---
 
 ## Phase 4: Advanced Optimizations & Polish (FYP2 Prep)
 *Objective: Ensure production readiness, battery efficiency, and edge-case handling.*
 
-- [ ] **Background Geofencing**: Integrate native Android/iOS background tracking for battery efficiency.
-- [ ] **Adaptive Scheduling**: Fetch crowd density API to suggest rerouting.
-- [ ] **Privacy & Consent**: Implement PDPA/GDPR compliant location permission onboarding.
+- [~] **Background Geofencing**: Native background-location readiness declarations and opt-in monitoring status are implemented; full always-on native service remains future production work.
+- [x] **Adaptive Scheduling**: Fetch local crowd density advice with deterministic fallback to suggest timing changes and rerouting.
+- [x] **Privacy & Consent**: Implement PDPA/GDPR-style location/data consent onboarding before location tracking.
 - [~] **UI Polish (Rank S)**: Mecca Gold, Zinc-50, dashboard, simulator cards, and guidance sheets exist; final consistency pass is still pending.
 - [x] **Admin Analytics Dashboard**: Aggregate-only Flutter admin screen with age distribution, pace by age group, distance by ability, and pace-vs-distance graph.
 - [x] **Seeded Demo Analytics**: Admin can seed demo aggregate session data for FYP presentation.
@@ -74,7 +74,13 @@ Legend:
 - `test/geofence_provider_test.dart`: Covers Tawaf pause/recovery, save/restore, completion cleanup, and guidance behavior.
 - `test/sai_provider_test.dart`: Covers Sa'i pair logic, completion, reset, and guidance behavior.
 - `lib/features/practice/data/`: Firebase Auth, profile, recommendation, and analytics repositories.
+- `lib/features/practice/data/offline_sync_store.dart`: Local recommendation cache and bounded retry queue for recommendation/session backend writes.
 - `lib/features/practice/presentation/pages/admin_dashboard_view.dart`: Aggregate-only admin analytics dashboard.
+- `lib/features/practice/presentation/pages/privacy_consent_view.dart`: Location/data consent notice before user tracking features are unlocked.
+- `lib/features/practice/presentation/privacy_consent_controller.dart`: Persisted consent state and defensive tracking guard.
+- `lib/features/practice/presentation/background_geofence_controller.dart`: Persisted background monitoring opt-in and platform readiness checks.
+- `lib/features/practice/data/crowd_density_repository.dart`: Adaptive scheduling crowd-density API client with offline fallback advice.
+- `lib/features/practice/presentation/adaptive_schedule_controller.dart`: Loads Tawaf/Sa'i crowd advice for dashboard rerouting suggestions.
 - `backend/ml_api/app.py`: Local Random Forest prediction API.
 - `lib/features/practice/presentation/ritual_progress_controller.dart`: Persisted Manual/Location-Based mode and ritual checkpoint enforcement.
 - `test/ritual_progress_controller_test.dart`: Covers Manual unlocks, Location-Based locking, checkpoint persistence, and reset.
@@ -83,6 +89,10 @@ Legend:
 
 - `flutter analyze --no-pub` passed with no issues.
 - `flutter test --no-pub` passed all tests.
+- `test/offline_sync_store_test.dart`: Covers cached recommendations, queued write replacement/removal, and queued analytics serialization.
+- `test/privacy_consent_controller_test.dart`: Covers default, accepted, and revoked location consent persistence.
+- `test/background_geofence_controller_test.dart`: Covers default disabled state, persisted opt-in, and foreground-only status messaging.
+- `test/crowd_density_repository_test.dart`: Covers crowd API parsing, low-crowd fallback, and high-crowd rerouting fallback.
 - `flutter build web --no-pub` passed.
 - `python -m py_compile backend\ml_api\app.py` passed.
 - Firebase deploy completed: Firestore API enabled, default Firestore database created, Firestore rules released, and Email/Password auth provider enabled.
@@ -90,4 +100,4 @@ Legend:
 
 ---
 
-*Last Updated: 01 May 2026 by Jargon (Squad)*
+*Last Updated: 02 May 2026 by Jargon*

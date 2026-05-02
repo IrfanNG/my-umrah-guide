@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field
 from sklearn.ensemble import RandomForestRegressor
 
@@ -31,6 +31,15 @@ class PredictionResponse(BaseModel):
     restEveryMinutes: int
     label: str
     advice: str
+
+
+class CrowdDensityResponse(BaseModel):
+    ritualType: RitualType
+    crowdLevel: Literal["low", "moderate", "high"]
+    densityScore: float
+    recommendedWindow: str
+    rerouteAdvice: str
+    generatedAt: str
 
 
 @dataclass(frozen=True)
@@ -63,6 +72,37 @@ def _baseline(age: int, ability: AbilityLevel, health: bool, ritual: RitualType)
     duration = base_distance / (pace * 60)
     rest = 8 if pace < 0.7 else 12 if pace < 0.9 else 15
     return base_distance, pace, duration, rest
+
+
+def _crowd_score(hour: int, ritual: RitualType) -> float:
+    base = 0.82 if 10 <= hour <= 14 else 0.76 if 19 <= hour <= 23 else 0.58 if 5 <= hour <= 8 else 0.32
+    ritual_adjustment = 0.04 if ritual == "tawaf" else 0.0
+    return min(round(base + ritual_adjustment, 2), 0.95)
+
+
+def _crowd_level(score: float) -> Literal["low", "moderate", "high"]:
+    if score >= 0.72:
+        return "high"
+    if score >= 0.45:
+        return "moderate"
+    return "low"
+
+
+def _crowd_window(level: str) -> str:
+    if level == "high":
+        return "Delay if possible; retry during early morning or late night"
+    if level == "moderate":
+        return "Proceed slowly or wait 30-45 minutes"
+    return "Current window is suitable"
+
+
+def _crowd_advice(ritual: RitualType, level: str) -> str:
+    ritual_label = "Sa'i corridor" if ritual == "sai" else "Tawaf area"
+    if level == "high":
+        return f"{ritual_label} is crowded. Use outer lanes, pause at safe edges, or delay the ritual window."
+    if level == "moderate":
+        return f"{ritual_label} is moderately crowded. Use steady pacing and avoid dense clusters."
+    return f"{ritual_label} crowd pressure is low. Continue with normal pacing."
 
 
 def _make_training_data() -> tuple[np.ndarray, np.ndarray]:
@@ -122,4 +162,25 @@ def predict(payload: PredictionRequest) -> PredictionResponse:
         restEveryMinutes=int(round(rest)),
         label=label,
         advice=advice,
+    )
+
+
+@app.get("/crowd-density", response_model=CrowdDensityResponse)
+def crowd_density(
+    ritualType: RitualType = Query(default="tawaf"),
+    hour: int | None = Query(default=None, ge=0, le=23),
+) -> CrowdDensityResponse:
+    from datetime import datetime, timezone
+
+    generated_at = datetime.now(timezone.utc)
+    effective_hour = generated_at.hour if hour is None else hour
+    score = _crowd_score(effective_hour, ritualType)
+    level = _crowd_level(score)
+    return CrowdDensityResponse(
+        ritualType=ritualType,
+        crowdLevel=level,
+        densityScore=score,
+        recommendedWindow=_crowd_window(level),
+        rerouteAdvice=_crowd_advice(ritualType, level),
+        generatedAt=generated_at.isoformat(),
     )

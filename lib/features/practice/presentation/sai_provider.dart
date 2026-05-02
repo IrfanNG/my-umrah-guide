@@ -4,6 +4,7 @@ import 'dart:math' show cos, sqrt, asin;
 import 'dart:async';
 import '../../../core/services/notification_service.dart';
 import 'guidance/ritual_guidance.dart';
+import 'privacy_consent_controller.dart';
 
 enum HillTarget { safa, marwa }
 
@@ -43,6 +44,8 @@ class SaiProvider with ChangeNotifier {
   }
 
   Future<void> setSafaPoint() async {
+    if (!await PrivacyConsentController.hasAcceptedLocationConsent()) return;
+
     if (_currentPosition != null) {
       _safaPosition = _currentPosition;
       notifyListeners();
@@ -82,6 +85,8 @@ class SaiProvider with ChangeNotifier {
   }
 
   Future<void> setMarwaPoint() async {
+    if (!await PrivacyConsentController.hasAcceptedLocationConsent()) return;
+
     if (_currentPosition != null) {
       _marwaPosition = _currentPosition;
       notifyListeners();
@@ -211,6 +216,8 @@ class SaiProvider with ChangeNotifier {
 
   Future<void> startTracking() async {
     if (_positionStream != null) return;
+    if (!await PrivacyConsentController.hasAcceptedLocationConsent()) return;
+
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
 
