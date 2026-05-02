@@ -10,6 +10,7 @@ import '../geofence_provider.dart';
 import '../recommendation_controller.dart';
 import '../ritual_progress_controller.dart';
 import '../widgets/recommendation_panel.dart';
+import '../widgets/practice_ui.dart';
 
 class TawafSimulatorView extends StatefulWidget {
   const TawafSimulatorView({super.key});
@@ -100,9 +101,9 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
     unawaited(context.read<RitualProgressController>().markTawafCompleted());
     unawaited(
       context.read<RecommendationController>().logCompletionOnce(
-            ritualType: RitualType.tawaf,
-            completedUnits: geofence.tawafLapCount,
-          ),
+        ritualType: RitualType.tawaf,
+        completedUnits: geofence.tawafLapCount,
+      ),
     );
   }
 
@@ -197,34 +198,21 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
       body: Column(
         children: [
           if (isGpsNull)
-            Container(
-              padding: const EdgeInsets.all(8),
-              color: Colors.orange.shade100,
-              child: const Row(
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  SizedBox(width: 12),
-                  Text(
-                    "Acquiring GPS signal...",
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
+            const PracticeInfoBanner(
+              icon: Icons.location_searching,
+              title: 'GPS pending',
+              message: 'Acquiring GPS signal...',
+              backgroundColor: Color(0xFFFFF7ED),
+              foregroundColor: Color(0xFF9A3412),
+              borderColor: Color(0xFFFCD9B6),
             ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(8),
-            color: Colors.blue.shade50,
-            child: const Center(
-              child: Text(
-                "Tip: Tap on map to manually pin the Kaabah",
-                style: TextStyle(fontSize: 11, color: Colors.blue),
-              ),
-            ),
+          const PracticeInfoBanner(
+            icon: Icons.tips_and_updates_outlined,
+            title: 'Practice tip',
+            message: 'Tap the map to manually pin the Kaabah.',
+            backgroundColor: Color(0xFFF8FAFC),
+            foregroundColor: Color(0xFF1D4ED8),
+            borderColor: Color(0xFFDBEAFE),
           ),
           _buildStatusBanner(context, geofence),
           const RecommendationPanel(ritualType: RitualType.tawaf),
@@ -413,38 +401,24 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
         icon = Icons.warning_amber_rounded;
       }
     }
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: textColor),
-          const SizedBox(width: 12),
-          Text(
-            message,
-            style: TextStyle(
-              color: textColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
+    return PracticeInfoBanner(
+      icon: icon,
+      title: message,
+      message: geofence.kaabahPosition != null
+          ? 'Zone updates will follow your current Tawaf state.'
+          : 'Set the Kaabah location to begin.',
+      backgroundColor: bgColor,
+      foregroundColor: textColor,
+      borderColor: Colors.grey.shade200,
     );
   }
 
   Widget _buildLapCounter(BuildContext context, GeofenceProvider geofence) {
-    return Container(
+    return PracticeSurfaceCard(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
-      ),
+      backgroundColor: Colors.white,
+      borderRadius: BorderRadius.zero,
+      boxShadow: const [],
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -474,13 +448,10 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
   }
 
   Widget _buildDevOverlay(BuildContext context) {
-    return Container(
+    return PracticeSurfaceCard(
       padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
+      backgroundColor: Colors.white.withValues(alpha: 0.92),
+      borderRadius: PracticeUi.panelRadius,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

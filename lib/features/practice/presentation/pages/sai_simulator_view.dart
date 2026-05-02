@@ -9,6 +9,7 @@ import '../guidance/ritual_guidance_sheet.dart';
 import '../recommendation_controller.dart';
 import '../sai_provider.dart';
 import '../widgets/recommendation_panel.dart';
+import '../widgets/practice_ui.dart';
 
 class SaiSimulatorView extends StatefulWidget {
   const SaiSimulatorView({super.key});
@@ -96,9 +97,9 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
     final sai = context.read<SaiProvider>();
     unawaited(
       context.read<RecommendationController>().logCompletionOnce(
-            ritualType: RitualType.sai,
-            completedUnits: sai.saiLapCount,
-          ),
+        ritualType: RitualType.sai,
+        completedUnits: sai.saiLapCount,
+      ),
     );
   }
 
@@ -167,38 +168,23 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
       body: Column(
         children: [
           if (isGpsNull)
-            Container(
-              padding: const EdgeInsets.all(8),
-              color: Colors.orange.shade100,
-              child: const Row(
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  SizedBox(width: 12),
-                  Text(
-                    "Acquiring GPS signal...",
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
+            const PracticeInfoBanner(
+              icon: Icons.location_searching,
+              title: 'GPS pending',
+              message: 'Acquiring GPS signal...',
+              backgroundColor: Color(0xFFFFF7ED),
+              foregroundColor: Color(0xFF9A3412),
+              borderColor: Color(0xFFFCD9B6),
             ),
           if (_pinMode != PinMode.none)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              color: primaryColor,
-              child: Center(
-                child: Text(
-                  "TAP ON MAP TO PIN ${_pinMode == PinMode.safa ? 'SAFA' : 'MARWA'}",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+            PracticeInfoBanner(
+              icon: Icons.push_pin,
+              title: 'Pin mode active',
+              message:
+                  'Tap the map to pin ${_pinMode == PinMode.safa ? 'SAFA' : 'MARWA'}.',
+              backgroundColor: primaryColor.withValues(alpha: 0.1),
+              foregroundColor: primaryColor,
+              borderColor: primaryColor.withValues(alpha: 0.18),
             ),
           _buildTargetBanner(context, sai),
           const RecommendationPanel(ritualType: RitualType.sai),
@@ -373,38 +359,24 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
 
   Widget _buildTargetBanner(BuildContext context, SaiProvider sai) {
     String target = sai.nextTarget == HillTarget.marwa ? "MARWA" : "SAFA";
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.directions_walk, color: Color(0xFFD4AF37)),
-          const SizedBox(width: 12),
-          Text(
-            "NEXT TARGET: $target",
-            style: const TextStyle(
-              color: Color(0xFFD4AF37),
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
+    return PracticeInfoBanner(
+      icon: Icons.directions_walk,
+      title: 'Next target: $target',
+      message: 'Move toward the next hill and keep the corridor rhythm steady.',
+      backgroundColor: Theme.of(
+        context,
+      ).colorScheme.primary.withValues(alpha: 0.1),
+      foregroundColor: PracticeUi.gold,
+      borderColor: Colors.grey.shade200,
     );
   }
 
   Widget _buildLapCounter(BuildContext context, SaiProvider sai) {
-    return Container(
+    return PracticeSurfaceCard(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
-      ),
+      backgroundColor: Colors.white,
+      borderRadius: BorderRadius.zero,
+      boxShadow: const [],
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -434,44 +406,21 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
   }
 
   Widget _buildCurrentLapProgress(BuildContext context, SaiProvider sai) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 24),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.route_rounded,
-            size: 18,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              sai.currentLapProgressLabel,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF4B5563),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return PracticeInfoBanner(
+      icon: Icons.route_rounded,
+      title: 'Current progress',
+      message: sai.currentLapProgressLabel,
+      backgroundColor: const Color(0xFFF9FAFB),
+      foregroundColor: const Color(0xFF4B5563),
+      borderColor: Colors.grey.shade100,
     );
   }
 
   Widget _buildDevOverlay(BuildContext context) {
-    return Container(
+    return PracticeSurfaceCard(
       padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
+      backgroundColor: Colors.white.withValues(alpha: 0.92),
+      borderRadius: PracticeUi.panelRadius,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

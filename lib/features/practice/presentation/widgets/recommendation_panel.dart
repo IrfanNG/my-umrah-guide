@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../domain/ritual_recommendation.dart';
 import '../recommendation_controller.dart';
+import 'practice_ui.dart';
 
 class RecommendationPanel extends StatefulWidget {
   const RecommendationPanel({required this.ritualType, super.key});
@@ -39,27 +40,21 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
       return const SizedBox.shrink();
     }
 
-    return Container(
-      width: double.infinity,
+    return PracticeSurfaceCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
-        border: Border(bottom: BorderSide(color: Colors.amber.shade100)),
-      ),
+      backgroundColor: const Color(0xFFFFFBEB),
+      borderColor: Colors.amber.shade100,
+      borderRadius: PracticeUi.panelRadius,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(
-                Icons.auto_graph,
-                size: 18,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+              Icon(Icons.auto_graph, size: 18, color: PracticeUi.gold),
               const SizedBox(width: 8),
               Text(
                 '${recommendation.ritualType.label} ML Suggestion',
-                style: const TextStyle(fontWeight: FontWeight.w700),
+                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
               const Spacer(),
               Text(
@@ -92,24 +87,28 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _MetricChip(
+              PracticeMetricChip(
                 label: 'Distance',
                 value:
                     '${recommendation.distanceMinMeters.round()}-${recommendation.distanceMaxMeters.round()} m',
+                borderColor: Colors.amber.shade100,
               ),
-              _MetricChip(
+              PracticeMetricChip(
                 label: 'Pace',
                 value:
                     '${recommendation.paceMinMps.toStringAsFixed(2)}-${recommendation.paceMaxMps.toStringAsFixed(2)} m/s',
+                borderColor: Colors.amber.shade100,
               ),
-              _MetricChip(
+              PracticeMetricChip(
                 label: 'Time',
                 value:
                     '${recommendation.timeMinMinutes.round()}-${recommendation.timeMaxMinutes.round()} min',
+                borderColor: Colors.amber.shade100,
               ),
-              _MetricChip(
+              PracticeMetricChip(
                 label: 'Rest',
                 value: 'Every ${recommendation.restEveryMinutes} min',
+                borderColor: Colors.amber.shade100,
               ),
             ],
           ),
@@ -130,36 +129,6 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricChip extends StatelessWidget {
-  const _MetricChip({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.amber.shade100),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-          ),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
         ],
       ),
     );

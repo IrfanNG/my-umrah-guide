@@ -8,6 +8,7 @@ import '../adaptive_schedule_controller.dart';
 import '../auth_controller.dart';
 import '../background_geofence_controller.dart';
 import '../ritual_progress_controller.dart';
+import '../widgets/practice_ui.dart';
 
 class DashboardView extends StatefulWidget {
   const DashboardView({required this.profile, super.key});
@@ -58,79 +59,89 @@ class _DashboardViewState extends State<DashboardView> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Journey Steps',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineMedium?.copyWith(fontSize: 24),
+        padding: PracticeUi.pagePadding,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 960),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                PracticeSectionHeader(
+                  title: 'Journey Steps',
+                  subtitle:
+                      '${widget.profile.age} years old · ${widget.profile.abilityLevel.label}',
+                  trailing: PracticeStatusChip(
+                    label: progress.mode == PracticeMode.manual
+                        ? 'Manual mode'
+                        : 'Location-based',
+                    icon: progress.mode == PracticeMode.manual
+                        ? Icons.edit_location_alt
+                        : Icons.gps_fixed,
+                    backgroundColor: Colors.white,
+                    borderColor: Colors.amber.shade100,
+                    foregroundColor: PracticeUi.gold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _ModeSelector(progress: progress),
+                const SizedBox(height: 16),
+                _BackgroundMonitoringCard(controller: background),
+                const SizedBox(height: 16),
+                _AdaptiveSchedulingCard(controller: adaptive),
+                const SizedBox(height: 28),
+                _buildTimelineItem(
+                  context,
+                  title: 'Umrah Intent at Miqat',
+                  description: progress.mode == PracticeMode.manual
+                      ? 'Manual mode keeps this checkpoint open for revision.'
+                      : 'Complete Niyyah before unlocking Tawaf.',
+                  isCompleted:
+                      progress.mode == PracticeMode.manual ||
+                      progress.niyyahCompleted,
+                  isActive:
+                      progress.mode == PracticeMode.locationBased &&
+                      !progress.niyyahCompleted,
+                  isFirst: true,
+                  actionLabel:
+                      progress.mode == PracticeMode.locationBased &&
+                          !progress.niyyahCompleted
+                      ? 'Mark Niyyah Done'
+                      : null,
+                  onTap:
+                      progress.mode == PracticeMode.locationBased &&
+                          !progress.niyyahCompleted
+                      ? progress.markNiyyahCompleted
+                      : null,
+                ),
+                _buildTimelineItem(
+                  context,
+                  title: 'Tawaf (7 Rounds)',
+                  description: progress.canOpenTawaf
+                      ? 'Practice rounds with ML pace and time suggestion.'
+                      : 'Locked until Miqat/Niyyah is completed.',
+                  isCompleted: progress.tawafCompleted,
+                  isActive: progress.canOpenTawaf,
+                  isLocked: !progress.canOpenTawaf,
+                  onTap: progress.canOpenTawaf
+                      ? () => Navigator.pushNamed(context, '/tawaf-simulator')
+                      : null,
+                ),
+                _buildTimelineItem(
+                  context,
+                  title: 'Sa\'i (Safa to Marwa)',
+                  description: progress.canOpenSai
+                      ? 'Track Safa/Marwa progress with personal guidance.'
+                      : 'Locked until Tawaf checkpoint is completed.',
+                  isActive: progress.canOpenSai,
+                  isLocked: !progress.canOpenSai,
+                  isLast: true,
+                  onTap: progress.canOpenSai
+                      ? () => Navigator.pushNamed(context, '/sai-simulator')
+                      : null,
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              '${widget.profile.age} years old | ${widget.profile.abilityLevel.label}',
-              style: TextStyle(color: Colors.grey.shade700),
-            ),
-            const SizedBox(height: 20),
-            _ModeSelector(progress: progress),
-            const SizedBox(height: 16),
-            _BackgroundMonitoringCard(controller: background),
-            const SizedBox(height: 16),
-            _AdaptiveSchedulingCard(controller: adaptive),
-            const SizedBox(height: 28),
-            _buildTimelineItem(
-              context,
-              title: 'Umrah Intent at Miqat',
-              description: progress.mode == PracticeMode.manual
-                  ? 'Manual mode keeps this checkpoint open for revision.'
-                  : 'Complete Niyyah before unlocking Tawaf.',
-              isCompleted:
-                  progress.mode == PracticeMode.manual ||
-                  progress.niyyahCompleted,
-              isActive:
-                  progress.mode == PracticeMode.locationBased &&
-                  !progress.niyyahCompleted,
-              isFirst: true,
-              actionLabel:
-                  progress.mode == PracticeMode.locationBased &&
-                      !progress.niyyahCompleted
-                  ? 'Mark Niyyah Done'
-                  : null,
-              onTap:
-                  progress.mode == PracticeMode.locationBased &&
-                      !progress.niyyahCompleted
-                  ? progress.markNiyyahCompleted
-                  : null,
-            ),
-            _buildTimelineItem(
-              context,
-              title: 'Tawaf (7 Rounds)',
-              description: progress.canOpenTawaf
-                  ? 'Practice rounds with ML pace and time suggestion.'
-                  : 'Locked until Miqat/Niyyah is completed.',
-              isCompleted: progress.tawafCompleted,
-              isActive: progress.canOpenTawaf,
-              isLocked: !progress.canOpenTawaf,
-              onTap: progress.canOpenTawaf
-                  ? () => Navigator.pushNamed(context, '/tawaf-simulator')
-                  : null,
-            ),
-            _buildTimelineItem(
-              context,
-              title: 'Sa\'i (Safa to Marwa)',
-              description: progress.canOpenSai
-                  ? 'Track Safa/Marwa progress with personal guidance.'
-                  : 'Locked until Tawaf checkpoint is completed.',
-              isActive: progress.canOpenSai,
-              isLocked: !progress.canOpenSai,
-              isLast: true,
-              onTap: progress.canOpenSai
-                  ? () => Navigator.pushNamed(context, '/sai-simulator')
-                  : null,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -302,14 +313,8 @@ class _AdaptiveSchedulingCard extends StatelessWidget {
     final isLoading =
         controller.isLoading('tawaf') || controller.isLoading('sai');
 
-    return Container(
-      width: double.infinity,
+    return PracticeSurfaceCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -323,7 +328,7 @@ class _AdaptiveSchedulingCard extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Adaptive Scheduling',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
               IconButton(
@@ -410,16 +415,9 @@ class _BackgroundMonitoringCard extends StatelessWidget {
     final primaryColor = Theme.of(context).colorScheme.primary;
     final isReady = controller.readiness == BackgroundGeofenceReadiness.ready;
 
-    return Container(
-      width: double.infinity,
+    return PracticeSurfaceCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isReady ? Colors.green.shade200 : Colors.amber.shade100,
-        ),
-      ),
+      borderColor: isReady ? Colors.green.shade200 : Colors.amber.shade100,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -483,14 +481,8 @@ class _ModeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return PracticeSurfaceCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -499,7 +491,7 @@ class _ModeSelector extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Practice Mode',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
               if (progress.mode == PracticeMode.locationBased)
