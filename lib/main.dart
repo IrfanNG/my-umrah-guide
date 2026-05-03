@@ -8,6 +8,8 @@ import 'features/practice/presentation/auth_controller.dart';
 import 'features/practice/presentation/background_geofence_controller.dart';
 import 'features/practice/presentation/pages/auth_gate.dart';
 import 'features/practice/presentation/pages/login_guest_view.dart';
+import 'features/practice/presentation/pages/login_form_view.dart';
+import 'features/practice/presentation/pages/register_view.dart';
 import 'features/practice/presentation/pages/tawaf_simulator_view.dart';
 import 'features/practice/presentation/pages/sai_simulator_view.dart';
 import 'features/practice/presentation/profile_controller.dart';
@@ -71,6 +73,8 @@ class MyUmrahGuide extends StatelessWidget {
       routes: {
         '/': (context) => const AuthGate(),
         '/login': (context) => const LoginGuestView(),
+        '/login-form': (context) => const LoginFormView(),
+        '/register': (context) => const RegisterView(),
         '/admin': (context) => const AuthGate(),
         '/dashboard': (context) => const _DashboardRouteFallback(),
         '/profile': (context) => const _ProfileRouteFallback(),
