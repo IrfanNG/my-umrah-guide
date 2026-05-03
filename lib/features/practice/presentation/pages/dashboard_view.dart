@@ -69,92 +69,6 @@ class _DashboardViewState extends State<DashboardView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                PracticeSurfaceCard(
-                  padding: const EdgeInsets.all(24),
-                  backgroundColor: const Color(0xFFFFFCF2),
-                  borderColor: const Color(0xFFF0E2B8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: PracticeUi.gold.withValues(alpha: 0.14),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.auto_stories_rounded,
-                          color: PracticeUi.gold,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Expanded(
-                                  child: Text(
-                                    'FYP Phase 4 ready',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w800,
-                                      color: PracticeUi.ink,
-                                    ),
-                                  ),
-                                ),
-                                PracticeStatusChip(
-                                  label: background.canUseBackgroundMonitoring
-                                      ? 'Background on'
-                                      : 'Background ready',
-                                  icon: background.canUseBackgroundMonitoring
-                                      ? Icons.radar_rounded
-                                      : Icons.shield_outlined,
-                                  backgroundColor: Colors.white,
-                                  borderColor: const Color(0xFFF0E2B8),
-                                  foregroundColor: PracticeUi.ink,
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Consent-gated tracking, adaptive crowd advice, and polished journey screens are aligned for the FYP demo.',
-                              style: TextStyle(
-                                color: PracticeUi.body,
-                                height: 1.45,
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                PracticeMetricChip(
-                                  label: 'Age',
-                                  value: '${widget.profile.age}',
-                                  borderColor: const Color(0xFFF0E2B8),
-                                ),
-                                PracticeMetricChip(
-                                  label: 'Ability',
-                                  value: widget.profile.abilityLevel.label,
-                                  borderColor: const Color(0xFFF0E2B8),
-                                ),
-                                PracticeMetricChip(
-                                  label: 'Mode',
-                                  value: progress.mode.label,
-                                  borderColor: const Color(0xFFF0E2B8),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
                 PracticeSectionHeader(
                   title: 'Journey Steps',
                   subtitle:
@@ -274,124 +188,150 @@ class _DashboardViewState extends State<DashboardView> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: PracticeSurfaceCard(
-        backgroundColor: isLocked ? const Color(0xFFF9FAFB) : Colors.white,
-        borderColor: isCompleted
-            ? secondaryColor.withValues(alpha: 0.24)
-            : isLocked
-            ? Colors.grey.shade200
-            : primaryColor.withValues(alpha: 0.22),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Column(
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: PracticeUi.cardRadius,
+        child: InkWell(
+          onTap: isLocked ? null : onTap,
+          borderRadius: PracticeUi.cardRadius,
+          child: PracticeSurfaceCard(
+            backgroundColor: isLocked ? const Color(0xFFF9FAFB) : Colors.white,
+            borderColor: isCompleted
+                ? secondaryColor.withValues(alpha: 0.24)
+                : isLocked
+                ? Colors.grey.shade200
+                : primaryColor.withValues(alpha: 0.22),
+            boxShadow: isLocked
+                ? const []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 2,
-                  height: isFirst ? 10 : 20,
-                  color: isFirst ? Colors.transparent : Colors.grey.shade300,
+                Column(
+                  children: [
+                    Container(
+                      width: 2,
+                      height: isFirst ? 10 : 20,
+                      color: isFirst
+                          ? Colors.transparent
+                          : Colors.grey.shade300,
+                    ),
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: dotColor,
+                        border: Border.all(color: borderColor, width: 2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: isCompleted
+                          ? const Icon(
+                              Icons.check,
+                              size: 16,
+                              color: Colors.white,
+                            )
+                          : isLocked
+                          ? Icon(Icons.lock, size: 14, color: mutedColor)
+                          : (isActive
+                                ? const Icon(
+                                    Icons.play_arrow,
+                                    size: 16,
+                                    color: Colors.white,
+                                  )
+                                : null),
+                    ),
+                    Container(
+                      width: 2,
+                      height: isLast ? 10 : 32,
+                      color: isLast ? Colors.transparent : Colors.grey.shade300,
+                    ),
+                  ],
                 ),
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: dotColor,
-                    border: Border.all(color: borderColor, width: 2),
-                    shape: BoxShape.circle,
-                  ),
-                  child: isCompleted
-                      ? const Icon(Icons.check, size: 16, color: Colors.white)
-                      : isLocked
-                      ? Icon(Icons.lock, size: 14, color: mutedColor)
-                      : (isActive
-                            ? const Icon(
-                                Icons.play_arrow,
-                                size: 16,
-                                color: Colors.white,
-                              )
-                            : null),
-                ),
+                const SizedBox(width: 16),
                 Expanded(
-                  child: Container(
-                    width: 2,
-                    color: isLast ? Colors.transparent : Colors.grey.shade300,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w800,
+                                color: isLocked
+                                    ? Colors.grey.shade600
+                                    : PracticeUi.ink,
+                              ),
+                            ),
+                          ),
+                          PracticeStatusChip(
+                            label: statusLabel,
+                            icon: statusIcon,
+                            backgroundColor: isCompleted
+                                ? secondaryColor.withValues(alpha: 0.12)
+                                : isLocked
+                                ? Colors.white
+                                : primaryColor.withValues(alpha: 0.08),
+                            foregroundColor: isCompleted
+                                ? secondaryColor
+                                : isLocked
+                                ? Colors.grey.shade600
+                                : primaryColor,
+                            borderColor: isCompleted
+                                ? secondaryColor.withValues(alpha: 0.2)
+                                : isLocked
+                                ? Colors.grey.shade200
+                                : primaryColor.withValues(alpha: 0.16),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
+                          height: 1.35,
+                        ),
+                      ),
+                      if (actionLabel != null || (isActive && onTap != null))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12.0),
+                          child: Row(
+                            children: [
+                              Text(
+                                actionLabel ?? 'Start Practice',
+                                style: TextStyle(
+                                  color: isLocked
+                                      ? Colors.grey.shade500
+                                      : PracticeUi.gold,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right,
+                                size: 16,
+                                color: isLocked
+                                    ? Colors.grey.shade500
+                                    : primaryColor,
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: isLocked ? Colors.grey.shade600 : PracticeUi.ink,
-                          ),
-                        ),
-                      ),
-                      PracticeStatusChip(
-                        label: statusLabel,
-                        icon: statusIcon,
-                        backgroundColor: isCompleted
-                            ? secondaryColor.withValues(alpha: 0.12)
-                            : isLocked
-                            ? Colors.white
-                            : primaryColor.withValues(alpha: 0.08),
-                        foregroundColor: isCompleted
-                            ? secondaryColor
-                            : isLocked
-                            ? Colors.grey.shade600
-                            : primaryColor,
-                        borderColor: isCompleted
-                            ? secondaryColor.withValues(alpha: 0.2)
-                            : isLocked
-                            ? Colors.grey.shade200
-                            : primaryColor.withValues(alpha: 0.16),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade700,
-                      height: 1.35,
-                    ),
-                  ),
-                  if (actionLabel != null || (isActive && onTap != null))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12.0),
-                      child: Row(
-                        children: [
-                          Text(
-                            actionLabel ?? 'Start Practice',
-                            style: TextStyle(
-                              color: isLocked
-                                  ? Colors.grey.shade500
-                                  : PracticeUi.gold,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Icon(
-                            Icons.chevron_right,
-                            size: 16,
-                            color: isLocked ? Colors.grey.shade500 : primaryColor,
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_umrah_guide/features/practice/domain/practice_mode.dart';
+import 'package:my_umrah_guide/features/practice/presentation/guest_session_controller.dart';
 import 'package:my_umrah_guide/features/practice/presentation/ritual_progress_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -56,5 +57,30 @@ void main() {
 
     expect(restored.canOpenTawaf, isFalse);
     expect(restored.canOpenSai, isFalse);
+  });
+
+  test('guest progress stays isolated from user progress', () async {
+    final guestSession = GuestSessionController();
+    await guestSession.load();
+    await guestSession.enterGuestMode();
+
+    final guestController = RitualProgressController(
+      guestSessionController: guestSession,
+    );
+    await guestController.load();
+    await guestController.setMode(PracticeMode.locationBased);
+    await guestController.markNiyyahCompleted();
+
+    final userSession = GuestSessionController();
+    await userSession.load();
+
+    final userController = RitualProgressController(
+      guestSessionController: userSession,
+    );
+    await userController.load();
+
+    expect(userController.mode, PracticeMode.manual);
+    expect(userController.canOpenTawaf, isTrue);
+    expect(userController.canOpenSai, isTrue);
   });
 }

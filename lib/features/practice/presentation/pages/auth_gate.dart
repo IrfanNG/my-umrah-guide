@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../domain/user_profile.dart';
 import '../auth_controller.dart';
+import '../guest_session_controller.dart';
 import '../privacy_consent_controller.dart';
 import '../profile_controller.dart';
 import '../widgets/practice_ui.dart';
@@ -19,38 +20,62 @@ class AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.read<AuthController>();
-    return StreamBuilder<User?>(
-      stream: auth.authStateChanges,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+    return Consumer<GuestSessionController>(
+      builder: (context, guestSession, _) {
+        if (!guestSession.isLoaded) {
+          guestSession.load();
           return const _GateLoading();
         }
-        final user = snapshot.data;
-        if (user == null) return const LoginGuestView();
-
-        return StreamBuilder<UserProfile?>(
-          stream: context.read<ProfileController>().watchProfile(user.uid),
-          builder: (context, profileSnapshot) {
-            if (profileSnapshot.connectionState == ConnectionState.waiting) {
+        return StreamBuilder<User?>(
+          stream: auth.authStateChanges,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
               return const _GateLoading();
             }
-            final profile = profileSnapshot.data;
-            if (profile == null || !profile.isComplete) {
-              return ProfileSetupView(user: user, existingProfile: profile);
+            final user = snapshot.data;
+            if (user == null) {
+              if (guestSession.isGuestMode) {
+                return Consumer<PrivacyConsentController>(
+                  builder: (context, consent, _) {
+                    if (!consent.isLoaded) {
+                      consent.load();
+                      return const _GateLoading();
+                    }
+                    if (!consent.hasLocationConsent) {
+                      return const PrivacyConsentView();
+                    }
+                    return DashboardView(profile: GuestSessionController.guestProfile);
+                  },
+                );
+              }
+              return const LoginGuestView();
             }
-            if (profile.role == UserRole.admin) {
-              return const AdminDashboardView();
-            }
-            return Consumer<PrivacyConsentController>(
-              builder: (context, consent, _) {
-                if (!consent.isLoaded) {
-                  consent.load();
+
+            return StreamBuilder<UserProfile?>(
+              stream: context.read<ProfileController>().watchProfile(user.uid),
+              builder: (context, profileSnapshot) {
+                if (profileSnapshot.connectionState == ConnectionState.waiting) {
                   return const _GateLoading();
                 }
-                if (!consent.hasLocationConsent) {
-                  return const PrivacyConsentView();
+                final profile = profileSnapshot.data;
+                if (profile == null || !profile.isComplete) {
+                  return ProfileSetupView(user: user, existingProfile: profile);
                 }
-                return DashboardView(profile: profile);
+                if (profile.role == UserRole.admin) {
+                  return const AdminDashboardView();
+                }
+                return Consumer<PrivacyConsentController>(
+                  builder: (context, consent, _) {
+                    if (!consent.isLoaded) {
+                      consent.load();
+                      return const _GateLoading();
+                    }
+                    if (!consent.hasLocationConsent) {
+                      return const PrivacyConsentView();
+                    }
+                    return DashboardView(profile: profile);
+                  },
+                );
               },
             );
           },

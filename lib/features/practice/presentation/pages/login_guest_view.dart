@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../auth_controller.dart';
+import '../guest_session_controller.dart';
 import '../widgets/practice_ui.dart';
 
 class LoginGuestView extends StatelessWidget {
@@ -175,9 +175,25 @@ class LoginGuestView extends StatelessWidget {
                       ),
                       child: const Text('Create an Account'),
                     ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          context.read<GuestSessionController>().enterGuestMode(),
+                      icon: const Icon(Icons.person_outline),
+                      label: const Text('Enter as Guest'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: PracticeUi.gold,
+                        side: const BorderSide(color: Color(0xFFF0E2B8)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        backgroundColor: const Color(0xFFFFFCF2),
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     Text(
-                      'By continuing, you agree to our Terms & Conditions and Privacy Policy.',
+                      'Guest mode keeps everything local on this device. You can still sign in later for Firebase-backed sync.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.grey.shade600,

@@ -197,176 +197,150 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
         scrolledUnderElevation: 0,
       ),
       backgroundColor: PracticeUi.mutedSurface,
-      body: Column(
+      body: Stack(
         children: [
-          if (isGpsNull)
-            const PracticeInfoBanner(
-              icon: Icons.location_searching,
-              title: 'GPS pending',
-              message: 'Acquiring GPS signal...',
-              backgroundColor: Color(0xFFFFF7ED),
-              foregroundColor: Color(0xFF9A3412),
-              borderColor: Color(0xFFFCD9B6),
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: userLatLng,
+              initialZoom: 18.0,
+              onMapReady: () {
+                setState(() {
+                  _isMapReady = true;
+                });
+              },
+              onTap: (tapPos, point) {
+                context.read<GeofenceProvider>().setManualKaabahPoint(
+                  point.latitude,
+                  point.longitude,
+                );
+              },
             ),
-          const PracticeInfoBanner(
-            icon: Icons.tips_and_updates_outlined,
-            title: 'Practice tip',
-            message: 'Tap the map to manually pin the Kaabah.',
-            backgroundColor: Color(0xFFF8FAFC),
-            foregroundColor: Color(0xFF1D4ED8),
-            borderColor: Color(0xFFDBEAFE),
-          ),
-          _buildStatusBanner(context, geofence),
-          const RecommendationPanel(ritualType: RitualType.tawaf),
-          _buildLapCounter(context, geofence),
-          Expanded(
-            child: Stack(
-              children: [
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: userLatLng,
-                    initialZoom: 18.0,
-                    onMapReady: () {
-                      setState(() {
-                        _isMapReady = true;
-                      });
-                    },
-                    onTap: (tapPos, point) {
-                      context.read<GeofenceProvider>().setManualKaabahPoint(
-                        point.latitude,
-                        point.longitude,
-                      );
-                    },
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.mish.my_umrah_guide',
-                      keepBuffer:
-                          3, // Fixes AbortError on web by buffering tiles
-                    ),
-                    if (geofence.kaabahPosition != null)
-                      CircleLayer(
-                        circles: [
-                          CircleMarker(
-                            point: kaabahLatLng,
-                            color: geofence.status == GeofenceStatus.inside
-                                ? primaryColor.withValues(alpha: 0.1)
-                                : Colors.transparent,
-                            borderStrokeWidth: 2,
-                            borderColor:
-                                geofence.status == GeofenceStatus.inside
-                                ? primaryColor.withValues(alpha: 0.5)
-                                : Colors.grey.withValues(alpha: 0.4),
-                            useRadiusInMeter: true,
-                            radius: geofence.radius,
-                          ),
-                        ],
-                      ),
-                    MarkerLayer(
-                      markers: [
-                        if (geofence.kaabahPosition != null)
-                          Marker(
-                            point: kaabahLatLng,
-                            width: 40,
-                            height: 40,
-                            child: const Icon(
-                              Icons.location_on,
-                              color: Colors.black,
-                              size: 40,
-                            ),
-                          ),
-                        if (!isGpsNull) // Only show user pin if GPS is acquired
-                          Marker(
-                            point: userLatLng,
-                            width: 40,
-                            height: 40,
-                            child: const Icon(
-                              Icons.person_pin_circle,
-                              color: Colors.blue,
-                              size: 40,
-                            ),
-                          ),
-                      ],
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.mish.my_umrah_guide',
+                keepBuffer: 3, // Fixes AbortError on web by buffering tiles
+              ),
+              if (geofence.kaabahPosition != null)
+                CircleLayer(
+                  circles: [
+                    CircleMarker(
+                      point: kaabahLatLng,
+                      color: geofence.status == GeofenceStatus.inside
+                          ? primaryColor.withValues(alpha: 0.1)
+                          : Colors.transparent,
+                      borderStrokeWidth: 2,
+                      borderColor: geofence.status == GeofenceStatus.inside
+                          ? primaryColor.withValues(alpha: 0.5)
+                          : Colors.grey.withValues(alpha: 0.4),
+                      useRadiusInMeter: true,
+                      radius: geofence.radius,
                     ),
                   ],
                 ),
-                // Debug LatLng Overlay
-                Positioned(
-                  top: 70,
-                  right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      geofence.currentPosition != null
-                          ? "${geofence.currentPosition!.latitude.toStringAsFixed(4)}, ${geofence.currentPosition!.longitude.toStringAsFixed(4)}"
-                          : "No GPS Data",
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
-                    ),
-                  ),
-                ),
-                // Locate Me Button
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: FloatingActionButton.small(
-                    onPressed: () {
-                      if (_isMapReady) {
-                        _animatedMapMove(userLatLng, 18.0);
-                      }
-                    },
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.my_location, color: primaryColor),
-                  ),
-                ),
-                Positioned(
-                  bottom: 16,
-                  left: 16,
-                  right: 16,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.3,
-                    ),
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (geofence.kaabahPosition == null)
-                            ElevatedButton.icon(
-                              onPressed: () => context
-                                  .read<GeofenceProvider>()
-                                  .setKaabahPoint(),
-                              icon: const Icon(Icons.location_on),
-                              label: const Text('Set Kaabah Location Here'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryColor,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                  horizontal: 20,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          const SizedBox(height: 8),
-                          _buildDevOverlay(context),
-                        ],
+              MarkerLayer(
+                markers: [
+                  if (geofence.kaabahPosition != null)
+                    Marker(
+                      point: kaabahLatLng,
+                      width: 40,
+                      height: 40,
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Colors.black,
+                        size: 40,
                       ),
                     ),
+                  if (!isGpsNull) // Only show user pin if GPS is acquired
+                    Marker(
+                      point: userLatLng,
+                      width: 40,
+                      height: 40,
+                      child: const Icon(
+                        Icons.person_pin_circle,
+                        color: Colors.blue,
+                        size: 40,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          Positioned(
+            top: 12,
+            left: 12,
+            right: 76,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isGpsNull) ...[
+                  _buildMapHint(
+                    icon: Icons.location_searching,
+                    label: 'GPS pending',
+                    color: const Color(0xFF9A3412),
                   ),
+                  const SizedBox(height: 8),
+                ],
+                _buildStatusChip(context, geofence),
+                const SizedBox(height: 8),
+                _buildCompactProgress(context, geofence),
+                const SizedBox(height: 8),
+                const RecommendationSheetButton(
+                  ritualType: RitualType.tawaf,
                 ),
               ],
+            ),
+          ),
+          // Locate Me Button
+          Positioned(
+            top: 16,
+            right: 16,
+            child: FloatingActionButton.small(
+              onPressed: () {
+                if (_isMapReady) {
+                  _animatedMapMove(userLatLng, 18.0);
+                }
+              },
+              backgroundColor: Colors.white,
+              child: Icon(Icons.my_location, color: primaryColor),
+            ),
+          ),
+          Positioned(
+            bottom: 16,
+            left: 16,
+            right: 16,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.3,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (geofence.kaabahPosition == null)
+                      ElevatedButton.icon(
+                        onPressed: () =>
+                            context.read<GeofenceProvider>().setKaabahPoint(),
+                        icon: const Icon(Icons.location_on),
+                        label: const Text('Set Kaabah Location Here'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                            horizontal: 20,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    _buildDevOverlay(context),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -374,51 +348,80 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
     );
   }
 
-  Widget _buildStatusBanner(BuildContext context, GeofenceProvider geofence) {
+  Widget _buildStatusChip(BuildContext context, GeofenceProvider geofence) {
     String message = "Please set the Kaabah location to begin.";
-    Color bgColor = Colors.grey.shade100;
     Color textColor = Colors.grey.shade700;
     IconData icon = Icons.info_outline;
 
     if (geofence.kaabahPosition != null) {
       if (geofence.isTawafPaused) {
-        message = "TAWAF PAUSED - RE-ENTER ZONE TO CONTINUE";
-        bgColor = Colors.orange.shade50;
+        message = "Tawaf paused";
         textColor = Colors.orange.shade800;
         icon = Icons.pause_circle_filled;
       } else if (geofence.status == GeofenceStatus.inside) {
-        message = "YOU ARE INSIDE THE TAWAF ZONE";
-        bgColor = Theme.of(context).colorScheme.primary.withValues(alpha: 0.1);
+        message = "Inside Tawaf zone";
         textColor = Theme.of(context).colorScheme.primary;
         icon = Icons.check_circle;
       } else if (geofence.miqatTriggered) {
-        message = "MIQAT APPROACHING (PREPARE NIYYAH)";
-        bgColor = Colors.blue.shade50;
+        message = "Miqat approaching";
         textColor = Colors.blue.shade700;
         icon = Icons.access_time_filled;
       } else {
-        message = "OUTSIDE TAWAF ZONE!";
-        bgColor = Colors.red.shade50;
+        message = "Outside Tawaf zone";
         textColor = Colors.red.shade700;
         icon = Icons.warning_amber_rounded;
       }
     }
-    return PracticeInfoBanner(
-      icon: icon,
-      title: message,
-      message: geofence.kaabahPosition != null
-          ? 'Zone updates will follow your current Tawaf state.'
-          : 'Set the Kaabah location to begin.',
-      backgroundColor: bgColor,
-      foregroundColor: textColor,
-      borderColor: Colors.grey.shade200,
+
+    return _buildMapHint(icon: icon, label: message, color: textColor);
+  }
+
+  Widget _buildMapHint({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildLapCounter(BuildContext context, GeofenceProvider geofence) {
+  Widget _buildCompactProgress(BuildContext context, GeofenceProvider geofence) {
     return PracticeSurfaceCard(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-      backgroundColor: Colors.white,
+      padding: const EdgeInsets.all(12),
+      backgroundColor: Colors.white.withValues(alpha: 0.94),
+      borderRadius: PracticeUi.panelRadius,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -438,15 +441,15 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           LinearProgressIndicator(
-            minHeight: 8,
+            minHeight: 6,
             borderRadius: BorderRadius.circular(999),
             value: geofence.tawafLapCount / 7,
             backgroundColor: Colors.grey.shade100,
             color: Theme.of(context).colorScheme.primary,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

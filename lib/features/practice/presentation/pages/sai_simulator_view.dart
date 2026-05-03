@@ -167,191 +167,170 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
         scrolledUnderElevation: 0,
       ),
       backgroundColor: PracticeUi.mutedSurface,
-      body: Column(
+      body: Stack(
         children: [
-          if (isGpsNull)
-            const PracticeInfoBanner(
-              icon: Icons.location_searching,
-              title: 'GPS pending',
-              message: 'Acquiring GPS signal...',
-              backgroundColor: Color(0xFFFFF7ED),
-              foregroundColor: Color(0xFF9A3412),
-              borderColor: Color(0xFFFCD9B6),
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: userLatLng,
+              initialZoom: 17.0,
+              onTap: (tapPos, point) {
+                if (_pinMode == PinMode.safa) {
+                  context.read<SaiProvider>().setManualSafaPoint(
+                    point.latitude,
+                    point.longitude,
+                  );
+                  setState(() => _pinMode = PinMode.none);
+                } else if (_pinMode == PinMode.marwa) {
+                  context.read<SaiProvider>().setManualMarwaPoint(
+                    point.latitude,
+                    point.longitude,
+                  );
+                  setState(() => _pinMode = PinMode.none);
+                }
+              },
+              onMapReady: () {
+                setState(() {
+                  _isMapReady = true;
+                });
+              },
             ),
-          if (_pinMode != PinMode.none)
-            PracticeInfoBanner(
-              icon: Icons.push_pin,
-              title: 'Pin mode active',
-              message:
-                  'Tap the map to pin ${_pinMode == PinMode.safa ? 'SAFA' : 'MARWA'}.',
-              backgroundColor: primaryColor.withValues(alpha: 0.1),
-              foregroundColor: primaryColor,
-              borderColor: primaryColor.withValues(alpha: 0.18),
-            ),
-          _buildTargetBanner(context, sai),
-          const RecommendationPanel(ritualType: RitualType.sai),
-          _buildLapCounter(context, sai),
-          _buildCurrentLapProgress(context, sai),
-          Expanded(
-            child: Stack(
-              children: [
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: userLatLng,
-                    initialZoom: 17.0,
-                    onTap: (tapPos, point) {
-                      if (_pinMode == PinMode.safa) {
-                        context.read<SaiProvider>().setManualSafaPoint(
-                          point.latitude,
-                          point.longitude,
-                        );
-                        setState(() => _pinMode = PinMode.none);
-                      } else if (_pinMode == PinMode.marwa) {
-                        context.read<SaiProvider>().setManualMarwaPoint(
-                          point.latitude,
-                          point.longitude,
-                        );
-                        setState(() => _pinMode = PinMode.none);
-                      }
-                    },
-                    onMapReady: () {
-                      setState(() {
-                        _isMapReady = true;
-                      });
-                    },
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.mish.my_umrah_guide',
-                      keepBuffer: 3, // Fixes AbortError on Web
-                    ),
-                    // Visual 100m Corridor representation
-                    if (sai.safaPosition != null && sai.marwaPosition != null)
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: [safaLatLng, marwaLatLng],
-                            strokeWidth: 40.0, // Visual corridor width
-                            color: primaryColor.withValues(alpha: 0.1),
-                          ),
-                        ],
-                      ),
-                    CircleLayer(
-                      circles: [
-                        CircleMarker(
-                          point: sai.nextTarget == HillTarget.marwa
-                              ? marwaLatLng
-                              : safaLatLng,
-                          color: primaryColor.withValues(alpha: 0.1),
-                          borderStrokeWidth: 2,
-                          borderColor: primaryColor.withValues(alpha: 0.5),
-                          useRadiusInMeter: true,
-                          radius: sai.radius,
-                        ),
-                      ],
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: safaLatLng,
-                          width: 40,
-                          height: 40,
-                          child: const Column(
-                            children: [
-                              Text(
-                                'SAFA',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Icon(Icons.location_on, color: Colors.brown),
-                            ],
-                          ),
-                        ),
-                        Marker(
-                          point: marwaLatLng,
-                          width: 40,
-                          height: 40,
-                          child: const Column(
-                            children: [
-                              Text(
-                                'MARWA',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Icon(Icons.location_on, color: Colors.brown),
-                            ],
-                          ),
-                        ),
-                        if (!isGpsNull)
-                          Marker(
-                            point: userLatLng,
-                            width: 40,
-                            height: 40,
-                            child: const Icon(
-                              Icons.person_pin_circle,
-                              color: Colors.blue,
-                              size: 40,
-                            ),
-                          ),
-                      ],
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.mish.my_umrah_guide',
+                keepBuffer: 3, // Fixes AbortError on Web
+              ),
+              // Visual 100m Corridor representation
+              if (sai.safaPosition != null && sai.marwaPosition != null)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: [safaLatLng, marwaLatLng],
+                      strokeWidth: 40.0, // Visual corridor width
+                      color: primaryColor.withValues(alpha: 0.1),
                     ),
                   ],
                 ),
-                // Debug LatLng Overlay
-                Positioned(
-                  top: 70,
-                  right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      sai.currentPosition != null
-                          ? "${sai.currentPosition!.latitude.toStringAsFixed(4)}, ${sai.currentPosition!.longitude.toStringAsFixed(4)}"
-                          : "No GPS Data",
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
+              CircleLayer(
+                circles: [
+                  CircleMarker(
+                    point: sai.nextTarget == HillTarget.marwa
+                        ? marwaLatLng
+                        : safaLatLng,
+                    color: primaryColor.withValues(alpha: 0.1),
+                    borderStrokeWidth: 2,
+                    borderColor: primaryColor.withValues(alpha: 0.5),
+                    useRadiusInMeter: true,
+                    radius: sai.radius,
+                  ),
+                ],
+              ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: safaLatLng,
+                    width: 40,
+                    height: 40,
+                    child: const Column(
+                      children: [
+                        Text(
+                          'SAFA',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Icon(Icons.location_on, color: Colors.brown),
+                      ],
                     ),
                   ),
-                ),
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: FloatingActionButton.small(
-                    onPressed: () {
-                      if (_isMapReady) {
-                        _animatedMapMove(userLatLng, 17.0);
-                      }
-                    },
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.my_location, color: primaryColor),
-                  ),
-                ),
-                Positioned(
-                  bottom: 16,
-                  left: 16,
-                  right: 16,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.3,
-                    ),
-                    child: SingleChildScrollView(
-                      child: _buildDevOverlay(context),
+                  Marker(
+                    point: marwaLatLng,
+                    width: 40,
+                    height: 40,
+                    child: const Column(
+                      children: [
+                        Text(
+                          'MARWA',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Icon(Icons.location_on, color: Colors.brown),
+                      ],
                     ),
                   ),
-                ),
+                  if (!isGpsNull)
+                    Marker(
+                      point: userLatLng,
+                      width: 40,
+                      height: 40,
+                      child: const Icon(
+                        Icons.person_pin_circle,
+                        color: Colors.blue,
+                        size: 40,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+          Positioned(
+            top: 12,
+            left: 12,
+            right: 76,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isGpsNull) ...[
+                  _buildMapHint(
+                    icon: Icons.location_searching,
+                    label: 'GPS pending',
+                    color: const Color(0xFF9A3412),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (_pinMode != PinMode.none) ...[
+                  _buildMapHint(
+                    icon: Icons.push_pin,
+                    label:
+                        'Tap map to pin ${_pinMode == PinMode.safa ? 'SAFA' : 'MARWA'}',
+                    color: primaryColor,
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                _buildTargetChip(context, sai),
+                const SizedBox(height: 8),
+                _buildCompactProgress(context, sai),
+                const SizedBox(height: 8),
+                const RecommendationSheetButton(ritualType: RitualType.sai),
               ],
+            ),
+          ),
+          Positioned(
+            top: 16,
+            right: 16,
+            child: FloatingActionButton.small(
+              onPressed: () {
+                if (_isMapReady) {
+                  _animatedMapMove(userLatLng, 17.0);
+                }
+              },
+              backgroundColor: Colors.white,
+              child: Icon(Icons.my_location, color: primaryColor),
+            ),
+          ),
+          Positioned(
+            bottom: 16,
+            left: 16,
+            right: 16,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.3,
+              ),
+              child: SingleChildScrollView(child: _buildDevOverlay(context)),
             ),
           ),
         ],
@@ -359,24 +338,61 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
     );
   }
 
-  Widget _buildTargetBanner(BuildContext context, SaiProvider sai) {
+  Widget _buildTargetChip(BuildContext context, SaiProvider sai) {
     String target = sai.nextTarget == HillTarget.marwa ? "MARWA" : "SAFA";
-    return PracticeInfoBanner(
+    return _buildMapHint(
       icon: Icons.directions_walk,
-      title: 'Next target: $target',
-      message: 'Move toward the next hill and keep the corridor rhythm steady.',
-      backgroundColor: Theme.of(
-        context,
-      ).colorScheme.primary.withValues(alpha: 0.1),
-      foregroundColor: PracticeUi.gold,
-      borderColor: Colors.grey.shade200,
+      label: 'Next target: $target',
+      color: PracticeUi.gold,
     );
   }
 
-  Widget _buildLapCounter(BuildContext context, SaiProvider sai) {
+  Widget _buildMapHint({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactProgress(BuildContext context, SaiProvider sai) {
     return PracticeSurfaceCard(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-      backgroundColor: Colors.white,
+      padding: const EdgeInsets.all(12),
+      backgroundColor: Colors.white.withValues(alpha: 0.94),
+      borderRadius: PracticeUi.panelRadius,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -396,15 +412,15 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           LinearProgressIndicator(
-            minHeight: 8,
+            minHeight: 6,
             borderRadius: BorderRadius.circular(999),
             value: sai.saiLapCount / 7,
             backgroundColor: Colors.grey.shade100,
             color: Theme.of(context).colorScheme.primary,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -421,19 +437,13 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
               ),
             ],
           ),
+          const SizedBox(height: 6),
+          Text(
+            sai.currentLapProgressLabel,
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildCurrentLapProgress(BuildContext context, SaiProvider sai) {
-    return PracticeInfoBanner(
-      icon: Icons.route_rounded,
-      title: 'Current progress',
-      message: sai.currentLapProgressLabel,
-      backgroundColor: const Color(0xFFF9FAFB),
-      foregroundColor: const Color(0xFF4B5563),
-      borderColor: Colors.grey.shade100,
     );
   }
 

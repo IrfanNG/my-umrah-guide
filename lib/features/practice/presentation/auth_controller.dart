@@ -2,12 +2,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../data/auth_repository.dart';
+import 'guest_session_controller.dart';
 
 class AuthController with ChangeNotifier {
-  AuthController({AuthRepository? repository})
-      : _repository = repository ?? AuthRepository();
+  AuthController({
+    AuthRepository? repository,
+    GuestSessionController? guestSessionController,
+  })  : _repository = repository ?? AuthRepository(),
+        _guestSessionController = guestSessionController;
 
   final AuthRepository _repository;
+  final GuestSessionController? _guestSessionController;
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -21,21 +26,30 @@ class AuthController with ChangeNotifier {
     required String email,
     required String password,
   }) async {
-    return _runAuthAction(
+    final result = await _runAuthAction(
       () => _repository.signIn(email: email, password: password),
     );
+    if (result) {
+      await _guestSessionController?.exitGuestMode();
+    }
+    return result;
   }
 
   Future<bool> register({
     required String email,
     required String password,
   }) async {
-    return _runAuthAction(
+    final result = await _runAuthAction(
       () => _repository.register(email: email, password: password),
     );
+    if (result) {
+      await _guestSessionController?.exitGuestMode();
+    }
+    return result;
   }
 
   Future<void> signOut() async {
+    await _guestSessionController?.exitGuestMode();
     await _repository.signOut();
   }
 

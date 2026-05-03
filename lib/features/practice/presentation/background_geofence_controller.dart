@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'privacy_consent_controller.dart';
+import 'guest_session_controller.dart';
 
 enum BackgroundGeofenceReadiness {
   disabled,
@@ -15,10 +18,15 @@ enum BackgroundGeofenceReadiness {
 class BackgroundGeofenceController with ChangeNotifier {
   BackgroundGeofenceController({
     Future<BackgroundGeofenceReadiness> Function()? readinessProbe,
-  }) : _readinessProbe = readinessProbe;
+    GuestSessionController? guestSessionController,
+  })  : _readinessProbe = readinessProbe,
+        _guestSessionController = guestSessionController {
+    _guestSessionController?.addListener(_handleSessionChanged);
+  }
 
   static const String _enabledKey = 'background_geofence_enabled_v1';
   final Future<BackgroundGeofenceReadiness> Function()? _readinessProbe;
+  final GuestSessionController? _guestSessionController;
 
   bool _isLoaded = false;
   bool _isEnabled = false;
@@ -32,10 +40,13 @@ class BackgroundGeofenceController with ChangeNotifier {
   String get statusMessage => _statusMessage;
   bool get canUseBackgroundMonitoring =>
       _isEnabled && _readiness == BackgroundGeofenceReadiness.ready;
+  String get _keyPrefix =>
+      _guestSessionController?.storageNamespace ?? 'user_';
 
   Future<void> load() async {
+    await _guestSessionController?.ensureLoaded();
     final prefs = await SharedPreferences.getInstance();
-    _isEnabled = prefs.getBool(_enabledKey) ?? false;
+    _isEnabled = prefs.getBool('$_keyPrefix$_enabledKey') ?? false;
     _isLoaded = true;
     await refreshStatus(notify: false);
     notifyListeners();
@@ -43,7 +54,7 @@ class BackgroundGeofenceController with ChangeNotifier {
 
   Future<void> setEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_enabledKey, enabled);
+    await prefs.setBool('$_keyPrefix$_enabledKey', enabled);
     _isEnabled = enabled;
     await refreshStatus(notify: false);
     notifyListeners();
@@ -99,5 +110,17 @@ class BackgroundGeofenceController with ChangeNotifier {
       case BackgroundGeofenceReadiness.ready:
         return 'Background-ready mode is enabled. Active ritual screens will keep geofence monitoring prepared.';
     }
+  }
+
+  void _handleSessionChanged() {
+    if (_isLoaded) {
+      unawaited(load());
+    }
+  }
+
+  @override
+  void dispose() {
+    _guestSessionController?.removeListener(_handleSessionChanged);
+    super.dispose();
   }
 }
