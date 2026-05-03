@@ -13,8 +13,13 @@ class PrivacyConsentView extends StatelessWidget {
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
+      backgroundColor: PracticeUi.mutedSurface,
       appBar: AppBar(
         title: const Text('Privacy & Location Consent'),
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           IconButton(
             tooltip: 'Sign out',

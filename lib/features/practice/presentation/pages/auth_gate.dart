@@ -6,6 +6,7 @@ import '../../domain/user_profile.dart';
 import '../auth_controller.dart';
 import '../privacy_consent_controller.dart';
 import '../profile_controller.dart';
+import '../widgets/practice_ui.dart';
 import 'admin_dashboard_view.dart';
 import 'dashboard_view.dart';
 import 'login_guest_view.dart';
@@ -64,6 +65,63 @@ class _GateLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
+    return Scaffold(
+      backgroundColor: PracticeUi.mutedSurface,
+      body: Center(
+        child: Padding(
+          padding: PracticeUi.pagePadding,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: PracticeSurfaceCard(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.sync,
+                      color: primaryColor,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Syncing your profile',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: PracticeUi.ink,
+                        ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Securing your journey data and preferences.',
+                    style: TextStyle(color: Colors.grey.shade700),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  LinearProgressIndicator(
+                    color: primaryColor,
+                    backgroundColor: primaryColor.withValues(alpha: 0.12),
+                    minHeight: 4,
+                  ),
+                  const SizedBox(height: 16),
+                  const PracticeStatusChip(
+                    label: 'Secure sync',
+                    icon: Icons.verified_user,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

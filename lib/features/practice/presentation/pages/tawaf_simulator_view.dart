@@ -191,10 +191,12 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Tawaf Simulation'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
       ),
+      backgroundColor: PracticeUi.mutedSurface,
       body: Column(
         children: [
           if (isGpsNull)
@@ -415,30 +417,49 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
 
   Widget _buildLapCounter(BuildContext context, GeofenceProvider geofence) {
     return PracticeSurfaceCard(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
       backgroundColor: Colors.white,
-      borderRadius: BorderRadius.zero,
-      boxShadow: const [],
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Tawaf Rounds",
-            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey),
-          ),
           Row(
             children: [
-              Text(
-                "${geofence.tawafLapCount}",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
+              const Expanded(
+                child: Text(
+                  'Tawaf Rounds',
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
-              const Text(
-                " / 7",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+              PracticeStatusChip(
+                label: geofence.isTawafCompleted ? 'Complete' : 'In progress',
+                icon: geofence.isTawafCompleted
+                    ? Icons.check_circle_outline
+                    : Icons.timelapse,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(
+            minHeight: 8,
+            borderRadius: BorderRadius.circular(999),
+            value: geofence.tawafLapCount / 7,
+            backgroundColor: Colors.grey.shade100,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Round ${geofence.tawafLapCount} of 7',
+                style: TextStyle(color: Colors.grey.shade700),
+              ),
+              Text(
+                geofence.isTawafCompleted ? 'Ready for Sa\'i' : 'Keep steady',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: PracticeUi.ink,
+                ),
               ),
             ],
           ),

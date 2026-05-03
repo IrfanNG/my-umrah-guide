@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../data/analytics_repository.dart';
 import '../../domain/ritual_recommendation.dart';
 import '../auth_controller.dart';
+import '../widgets/practice_ui.dart';
 
 class AdminDashboardView extends StatelessWidget {
   const AdminDashboardView({super.key});
@@ -12,8 +13,13 @@ class AdminDashboardView extends StatelessWidget {
   Widget build(BuildContext context) {
     final repository = AnalyticsRepository();
     return Scaffold(
+      backgroundColor: PracticeUi.mutedSurface,
       appBar: AppBar(
         title: const Text('Admin Analytics'),
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           IconButton(
             tooltip: 'Seed demo data',
@@ -55,28 +61,37 @@ class _EmptyAnalytics extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.bar_chart, size: 64, color: Color(0xFFD4AF37)),
-            const SizedBox(height: 16),
-            const Text(
-              'No analytics data yet',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: PracticeSurfaceCard(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.bar_chart_rounded, size: 64, color: PracticeUi.gold),
+                const SizedBox(height: 16),
+                const Text(
+                  'No analytics data yet',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: PracticeUi.ink,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Seed demo data to preview aggregate graphs for FYP.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade700, height: 1.4),
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: onSeed,
+                  icon: const Icon(Icons.dataset),
+                  label: const Text('Seed Demo Data'),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Seed demo data to preview aggregate graphs for FYP.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade700),
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed: onSeed,
-              icon: const Icon(Icons.dataset),
-              label: const Text('Seed Demo Data'),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -95,26 +110,23 @@ class _AnalyticsContent extends StatelessWidget {
     final saiCount =
         sessions.where((s) => s.ritualType == RitualType.sai).length;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: PracticeUi.pagePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Aggregate Overview',
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontSize: 24,
-                ),
+          PracticeSectionHeader(
+            title: 'Aggregate Overview',
+            subtitle:
+                'Aggregate-only view for the FYP demo. No individual pilgrim data is shown.',
           ),
-          const SizedBox(height: 12),
-          Row(
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
             children: [
-              Expanded(
-                child: _StatCard(label: 'Sessions', value: '${sessions.length}'),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: _StatCard(label: 'Tawaf', value: '$tawafCount')),
-              const SizedBox(width: 12),
-              Expanded(child: _StatCard(label: 'Sa\'i', value: '$saiCount')),
+              _StatCard(label: 'Sessions', value: '${sessions.length}'),
+              _StatCard(label: 'Tawaf', value: '$tawafCount'),
+              _StatCard(label: 'Sa\'i', value: '$saiCount'),
             ],
           ),
           const SizedBox(height: 20),
@@ -189,23 +201,25 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(color: Colors.grey.shade600)),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-        ],
+    return SizedBox(
+      width: 160,
+      child: PracticeSurfaceCard(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(color: Colors.grey.shade600)),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: PracticeUi.ink,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -219,22 +233,17 @@ class _ChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 14),
-          child,
-        ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: PracticeSurfaceCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 14),
+            child,
+          ],
+        ),
       ),
     );
   }

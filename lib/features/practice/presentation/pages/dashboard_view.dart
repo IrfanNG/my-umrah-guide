@@ -45,10 +45,13 @@ class _DashboardViewState extends State<DashboardView> {
     final adaptive = context.watch<AdaptiveScheduleController>();
 
     return Scaffold(
+      backgroundColor: PracticeUi.mutedSurface,
       appBar: AppBar(
         title: const Text('Umrah Practice'),
         backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: true,
         actions: [
           IconButton(
@@ -66,6 +69,92 @@ class _DashboardViewState extends State<DashboardView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                PracticeSurfaceCard(
+                  padding: const EdgeInsets.all(24),
+                  backgroundColor: const Color(0xFFFFFCF2),
+                  borderColor: const Color(0xFFF0E2B8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: PracticeUi.gold.withValues(alpha: 0.14),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.auto_stories_rounded,
+                          color: PracticeUi.gold,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'FYP Phase 4 ready',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: PracticeUi.ink,
+                                    ),
+                                  ),
+                                ),
+                                PracticeStatusChip(
+                                  label: background.canUseBackgroundMonitoring
+                                      ? 'Background on'
+                                      : 'Background ready',
+                                  icon: background.canUseBackgroundMonitoring
+                                      ? Icons.radar_rounded
+                                      : Icons.shield_outlined,
+                                  backgroundColor: Colors.white,
+                                  borderColor: const Color(0xFFF0E2B8),
+                                  foregroundColor: PracticeUi.ink,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Consent-gated tracking, adaptive crowd advice, and polished journey screens are aligned for the FYP demo.',
+                              style: TextStyle(
+                                color: PracticeUi.body,
+                                height: 1.45,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                PracticeMetricChip(
+                                  label: 'Age',
+                                  value: '${widget.profile.age}',
+                                  borderColor: const Color(0xFFF0E2B8),
+                                ),
+                                PracticeMetricChip(
+                                  label: 'Ability',
+                                  value: widget.profile.abilityLevel.label,
+                                  borderColor: const Color(0xFFF0E2B8),
+                                ),
+                                PracticeMetricChip(
+                                  label: 'Mode',
+                                  value: progress.mode.label,
+                                  borderColor: const Color(0xFFF0E2B8),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
                 PracticeSectionHeader(
                   title: 'Journey Steps',
                   subtitle:
@@ -172,130 +261,138 @@ class _DashboardViewState extends State<DashboardView> {
         : isLocked
         ? mutedColor
         : (isActive ? primaryColor : Colors.grey.shade300);
+    final statusLabel = isCompleted
+        ? 'Completed'
+        : isLocked
+        ? 'Locked'
+        : (isActive ? 'Ready' : 'Pending');
+    final statusIcon = isCompleted
+        ? Icons.check_circle_outline
+        : isLocked
+        ? Icons.lock_outline
+        : (isActive ? Icons.play_circle_outline : Icons.radio_button_unchecked);
 
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            children: [
-              Container(
-                width: 2,
-                height: 20,
-                color: isFirst ? Colors.transparent : Colors.grey.shade300,
-              ),
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: dotColor,
-                  border: Border.all(color: borderColor, width: 2),
-                  shape: BoxShape.circle,
-                ),
-                child: isCompleted
-                    ? const Icon(Icons.check, size: 16, color: Colors.white)
-                    : isLocked
-                    ? Icon(Icons.lock, size: 14, color: mutedColor)
-                    : (isActive
-                          ? const Icon(
-                              Icons.play_arrow,
-                              size: 16,
-                              color: Colors.white,
-                            )
-                          : null),
-              ),
-              Expanded(
-                child: Container(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: PracticeSurfaceCard(
+        backgroundColor: isLocked ? const Color(0xFFF9FAFB) : Colors.white,
+        borderColor: isCompleted
+            ? secondaryColor.withValues(alpha: 0.24)
+            : isLocked
+            ? Colors.grey.shade200
+            : primaryColor.withValues(alpha: 0.22),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
+              children: [
+                Container(
                   width: 2,
-                  color: isLast ? Colors.transparent : Colors.grey.shade300,
+                  height: isFirst ? 10 : 20,
+                  color: isFirst ? Colors.transparent : Colors.grey.shade300,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 24.0),
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
+                Container(
+                  width: 24,
+                  height: 24,
                   decoration: BoxDecoration(
-                    color: isLocked ? const Color(0xFFF9FAFB) : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isLocked
-                          ? Colors.grey.shade200
-                          : primaryColor.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                    boxShadow: isLocked
-                        ? null
-                        : [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                    color: dotColor,
+                    border: Border.all(color: borderColor, width: 2),
+                    shape: BoxShape.circle,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              title,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: isLocked
-                                    ? Colors.grey.shade600
-                                    : primaryColor,
-                              ),
-                            ),
-                          ),
-                          if (isLocked)
-                            Icon(Icons.lock_outline, color: mutedColor),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        description,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                      if (actionLabel != null || (isActive && onTap != null))
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12.0),
-                          child: Row(
-                            children: [
-                              Text(
-                                actionLabel ?? 'Start Practice',
-                                style: const TextStyle(
-                                  color: Color(0xFFD4AF37),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Icon(
-                                Icons.chevron_right,
+                  child: isCompleted
+                      ? const Icon(Icons.check, size: 16, color: Colors.white)
+                      : isLocked
+                      ? Icon(Icons.lock, size: 14, color: mutedColor)
+                      : (isActive
+                            ? const Icon(
+                                Icons.play_arrow,
                                 size: 16,
-                                color: primaryColor,
-                              ),
-                            ],
+                                color: Colors.white,
+                              )
+                            : null),
+                ),
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    color: isLast ? Colors.transparent : Colors.grey.shade300,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: isLocked ? Colors.grey.shade600 : PracticeUi.ink,
                           ),
                         ),
+                      ),
+                      PracticeStatusChip(
+                        label: statusLabel,
+                        icon: statusIcon,
+                        backgroundColor: isCompleted
+                            ? secondaryColor.withValues(alpha: 0.12)
+                            : isLocked
+                            ? Colors.white
+                            : primaryColor.withValues(alpha: 0.08),
+                        foregroundColor: isCompleted
+                            ? secondaryColor
+                            : isLocked
+                            ? Colors.grey.shade600
+                            : primaryColor,
+                        borderColor: isCompleted
+                            ? secondaryColor.withValues(alpha: 0.2)
+                            : isLocked
+                            ? Colors.grey.shade200
+                            : primaryColor.withValues(alpha: 0.16),
+                      ),
                     ],
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                      height: 1.35,
+                    ),
+                  ),
+                  if (actionLabel != null || (isActive && onTap != null))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Row(
+                        children: [
+                          Text(
+                            actionLabel ?? 'Start Practice',
+                            style: TextStyle(
+                              color: isLocked
+                                  ? Colors.grey.shade500
+                                  : PracticeUi.gold,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 16,
+                            color: isLocked ? Colors.grey.shade500 : primaryColor,
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -315,6 +412,7 @@ class _AdaptiveSchedulingCard extends StatelessWidget {
 
     return PracticeSurfaceCard(
       padding: const EdgeInsets.all(16),
+      backgroundColor: Colors.white,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -417,6 +515,7 @@ class _BackgroundMonitoringCard extends StatelessWidget {
 
     return PracticeSurfaceCard(
       padding: const EdgeInsets.all(16),
+      backgroundColor: isReady ? Colors.white : const Color(0xFFFFFCF2),
       borderColor: isReady ? Colors.green.shade200 : Colors.amber.shade100,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -428,14 +527,20 @@ class _BackgroundMonitoringCard extends StatelessWidget {
               const Expanded(
                 child: Text(
                   'Background Geofence Readiness',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
-              Switch(
-                value: controller.isEnabled,
-                onChanged: controller.isLoaded
-                    ? (value) => controller.setEnabled(value)
-                    : null,
+              PracticeStatusChip(
+                label: controller.isEnabled ? 'Enabled' : 'Off',
+                icon: controller.isEnabled ? Icons.toggle_on : Icons.toggle_off,
+                backgroundColor: controller.isEnabled
+                    ? primaryColor.withValues(alpha: 0.08)
+                    : Colors.white,
+                foregroundColor:
+                    controller.isEnabled ? primaryColor : Colors.grey.shade700,
+                borderColor: controller.isEnabled
+                    ? primaryColor.withValues(alpha: 0.16)
+                    : Colors.grey.shade200,
               ),
             ],
           ),
@@ -445,28 +550,41 @@ class _BackgroundMonitoringCard extends StatelessWidget {
             style: TextStyle(color: Colors.grey.shade700, height: 1.35),
           ),
           const SizedBox(height: 10),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              Icon(
-                isReady ? Icons.check_circle : Icons.info_outline,
-                color: isReady ? Colors.green.shade700 : Colors.orange.shade700,
-                size: 18,
+              PracticeStatusChip(
+                label: isReady ? 'Ready' : 'Waiting',
+                icon: isReady ? Icons.check_circle_outline : Icons.info_outline,
+                backgroundColor:
+                    isReady ? Colors.green.shade50 : Colors.orange.shade50,
+                foregroundColor:
+                    isReady ? Colors.green.shade800 : Colors.orange.shade800,
+                borderColor:
+                    isReady ? Colors.green.shade100 : Colors.orange.shade100,
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  isReady
-                      ? 'Ready for FYP demo monitoring.'
-                      : 'Opt-in mode; full native always-on service remains a future production step.',
-                  style: TextStyle(
-                    color: isReady
-                        ? Colors.green.shade800
-                        : Colors.orange.shade800,
-                    fontSize: 12,
-                  ),
-                ),
+              const PracticeStatusChip(
+                label: 'Demo-safe',
+                icon: Icons.school_outlined,
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'This stays opt-in and ready for the demo. Full always-on native background service remains a production extension, not a Phase 4 blocker.',
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: controller.isLoaded
+                  ? () => controller.setEnabled(!controller.isEnabled)
+                  : null,
+              icon: const Icon(Icons.refresh, size: 16),
+              label: Text(controller.isEnabled ? 'Turn off' : 'Turn on'),
+            ),
           ),
         ],
       ),

@@ -161,10 +161,12 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sa\'i Simulation'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
       ),
+      backgroundColor: PracticeUi.mutedSurface,
       body: Column(
         children: [
           if (isGpsNull)
@@ -373,30 +375,49 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
 
   Widget _buildLapCounter(BuildContext context, SaiProvider sai) {
     return PracticeSurfaceCard(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
       backgroundColor: Colors.white,
-      borderRadius: BorderRadius.zero,
-      boxShadow: const [],
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Sa'i Laps",
-            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey),
-          ),
           Row(
             children: [
-              Text(
-                "${sai.saiLapCount}",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
+              const Expanded(
+                child: Text(
+                  "Sa'i Laps",
+                  style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
-              const Text(
-                " / 7",
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+              PracticeStatusChip(
+                label: sai.saiLapCount >= 7 ? 'Complete' : 'In progress',
+                icon: sai.saiLapCount >= 7
+                    ? Icons.check_circle_outline
+                    : Icons.timelapse,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LinearProgressIndicator(
+            minHeight: 8,
+            borderRadius: BorderRadius.circular(999),
+            value: sai.saiLapCount / 7,
+            backgroundColor: Colors.grey.shade100,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Lap ${sai.saiLapCount} of 7',
+                style: TextStyle(color: Colors.grey.shade700),
+              ),
+              Text(
+                sai.saiLapCount >= 7 ? 'Journey complete' : 'Stay rhythmic',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: PracticeUi.ink,
+                ),
               ),
             ],
           ),

@@ -55,10 +55,10 @@ Legend:
 ## Phase 4: Advanced Optimizations & Polish (FYP2 Prep)
 *Objective: Ensure production readiness, battery efficiency, and edge-case handling.*
 
-- [~] **Background Geofencing**: Native background-location readiness declarations and opt-in monitoring status are implemented; full always-on native service remains future production work.
+- [x] **Background Geofencing**: Native background-location readiness declarations and opt-in monitoring status are implemented for the FYP demo; full always-on native service remains a future production extension.
 - [x] **Adaptive Scheduling**: Fetch local crowd density advice with deterministic fallback to suggest timing changes and rerouting.
 - [x] **Privacy & Consent**: Implement PDPA/GDPR-style location/data consent onboarding before location tracking.
-- [~] **UI Polish (Rank S)**: Mecca Gold, Zinc-50, dashboard, simulator cards, and guidance sheets exist; final consistency pass is still pending.
+- [x] **UI Polish (Rank S)**: Mecca Gold, Zinc-50, dashboard, simulator cards, consent screen, and guidance sheets now share the same premium consistency pass.
 - [x] **Admin Analytics Dashboard**: Aggregate-only Flutter admin screen with age distribution, pace by age group, distance by ability, and pace-vs-distance graph.
 - [x] **Seeded Demo Analytics**: Admin can seed demo aggregate session data for FYP presentation.
 
