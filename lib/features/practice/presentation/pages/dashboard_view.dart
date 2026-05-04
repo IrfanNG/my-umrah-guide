@@ -25,13 +25,11 @@ class _DashboardViewState extends State<DashboardView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final progress = context.read<RitualProgressController>();
-      if (!progress.isLoaded) {
-        progress.load();
-      }
+      if (!progress.isLoaded) progress.load();
+
       final background = context.read<BackgroundGeofenceController>();
-      if (!background.isLoaded) {
-        background.load();
-      }
+      if (!background.isLoaded) background.load();
+
       final adaptive = context.read<AdaptiveScheduleController>();
       adaptive.loadAdvice('tawaf');
       adaptive.loadAdvice('sai');
@@ -45,19 +43,18 @@ class _DashboardViewState extends State<DashboardView> {
     final adaptive = context.watch<AdaptiveScheduleController>();
 
     return Scaffold(
-      backgroundColor: PracticeUi.mutedSurface,
+      backgroundColor: PracticeUi.warmSurface,
       appBar: AppBar(
-        title: const Text('Umrah Practice'),
+        title: const Text(''),
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        centerTitle: true,
         actions: [
           IconButton(
             tooltip: 'Sign out',
             onPressed: () => context.read<AuthController>().signOut(),
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: PracticeUi.forest),
           ),
         ],
       ),
@@ -69,78 +66,46 @@ class _DashboardViewState extends State<DashboardView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                PracticeSectionHeader(
-                  title: 'Journey Steps',
-                  subtitle:
-                      '${widget.profile.age} years old · ${widget.profile.abilityLevel.label}',
-                  trailing: PracticeStatusChip(
-                    label: progress.mode == PracticeMode.manual
-                        ? 'Manual mode'
-                        : 'Location-based',
-                    icon: progress.mode == PracticeMode.manual
-                        ? Icons.edit_location_alt
-                        : Icons.gps_fixed,
-                    backgroundColor: Colors.white,
-                    borderColor: Colors.amber.shade100,
-                    foregroundColor: PracticeUi.gold,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _ModeSelector(progress: progress),
-                const SizedBox(height: 16),
-                _BackgroundMonitoringCard(controller: background),
-                const SizedBox(height: 16),
-                _AdaptiveSchedulingCard(controller: adaptive),
-                const SizedBox(height: 28),
-                _buildTimelineItem(
-                  context,
-                  title: 'Umrah Intent at Miqat',
-                  description: progress.mode == PracticeMode.manual
-                      ? 'Manual mode keeps this checkpoint open for revision.'
-                      : 'Complete Niyyah before unlocking Tawaf.',
-                  isCompleted:
-                      progress.mode == PracticeMode.manual ||
-                      progress.niyyahCompleted,
-                  isActive:
-                      progress.mode == PracticeMode.locationBased &&
-                      !progress.niyyahCompleted,
-                  isFirst: true,
-                  actionLabel:
-                      progress.mode == PracticeMode.locationBased &&
-                          !progress.niyyahCompleted
-                      ? 'Mark Niyyah Done'
-                      : null,
-                  onTap:
-                      progress.mode == PracticeMode.locationBased &&
-                          !progress.niyyahCompleted
-                      ? progress.markNiyyahCompleted
-                      : null,
-                ),
-                _buildTimelineItem(
-                  context,
-                  title: 'Tawaf (7 Rounds)',
-                  description: progress.canOpenTawaf
-                      ? 'Practice rounds with ML pace and time suggestion.'
-                      : 'Locked until Miqat/Niyyah is completed.',
-                  isCompleted: progress.tawafCompleted,
-                  isActive: progress.canOpenTawaf,
-                  isLocked: !progress.canOpenTawaf,
-                  onTap: progress.canOpenTawaf
-                      ? () => Navigator.pushNamed(context, '/tawaf-simulator')
-                      : null,
-                ),
-                _buildTimelineItem(
-                  context,
-                  title: 'Sa\'i (Safa to Marwa)',
-                  description: progress.canOpenSai
-                      ? 'Track Safa/Marwa progress with personal guidance.'
-                      : 'Locked until Tawaf checkpoint is completed.',
-                  isActive: progress.canOpenSai,
-                  isLocked: !progress.canOpenSai,
-                  isLast: true,
-                  onTap: progress.canOpenSai
-                      ? () => Navigator.pushNamed(context, '/sai-simulator')
-                      : null,
+                _DashboardHeader(profile: widget.profile, progress: progress),
+                const SizedBox(height: 18),
+                _NextStepCard(profile: widget.profile, progress: progress),
+                const SizedBox(height: 18),
+                _RitualTimeline(progress: progress),
+                const SizedBox(height: 18),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= 760;
+                    final cards = [
+                      _ModeSelector(progress: progress),
+                      _BackgroundMonitoringCard(controller: background),
+                      _AdaptiveSchedulingCard(controller: adaptive),
+                    ];
+                    if (!isWide) {
+                      return Column(
+                        children: cards
+                            .map(
+                              (card) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: card,
+                              ),
+                            )
+                            .toList(),
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: cards
+                          .map(
+                            (card) => Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 12),
+                                child: card,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    );
+                  },
                 ),
               ],
             ),
@@ -149,191 +114,358 @@ class _DashboardViewState extends State<DashboardView> {
       ),
     );
   }
+}
 
-  Widget _buildTimelineItem(
-    BuildContext context, {
-    required String title,
-    required String description,
-    bool isCompleted = false,
-    bool isActive = false,
-    bool isLocked = false,
-    bool isFirst = false,
-    bool isLast = false,
-    String? actionLabel,
-    VoidCallback? onTap,
-  }) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    final secondaryColor = Theme.of(context).colorScheme.secondary;
-    final mutedColor = Colors.grey.shade400;
-    final dotColor = isCompleted
-        ? secondaryColor
-        : isLocked
-        ? Colors.white
-        : (isActive ? primaryColor : Colors.white);
-    final borderColor = isCompleted
-        ? secondaryColor
-        : isLocked
-        ? mutedColor
-        : (isActive ? primaryColor : Colors.grey.shade300);
-    final statusLabel = isCompleted
-        ? 'Completed'
-        : isLocked
-        ? 'Locked'
-        : (isActive ? 'Ready' : 'Pending');
-    final statusIcon = isCompleted
-        ? Icons.check_circle_outline
-        : isLocked
-        ? Icons.lock_outline
-        : (isActive ? Icons.play_circle_outline : Icons.radio_button_unchecked);
+class _DashboardHeader extends StatelessWidget {
+  const _DashboardHeader({required this.profile, required this.progress});
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: PracticeUi.cardRadius,
-        child: InkWell(
-          onTap: isLocked ? null : onTap,
-          borderRadius: PracticeUi.cardRadius,
-          child: PracticeSurfaceCard(
-            backgroundColor: isLocked ? const Color(0xFFF9FAFB) : Colors.white,
-            borderColor: isCompleted
-                ? secondaryColor.withValues(alpha: 0.24)
-                : isLocked
-                ? Colors.grey.shade200
-                : primaryColor.withValues(alpha: 0.22),
-            boxShadow: isLocked
-                ? const []
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  children: [
-                    Container(
-                      width: 2,
-                      height: isFirst ? 10 : 20,
-                      color: isFirst
-                          ? Colors.transparent
-                          : Colors.grey.shade300,
-                    ),
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: dotColor,
-                        border: Border.all(color: borderColor, width: 2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: isCompleted
-                          ? const Icon(
-                              Icons.check,
-                              size: 16,
-                              color: Colors.white,
-                            )
-                          : isLocked
-                          ? Icon(Icons.lock, size: 14, color: mutedColor)
-                          : (isActive
-                                ? const Icon(
-                                    Icons.play_arrow,
-                                    size: 16,
-                                    color: Colors.white,
-                                  )
-                                : null),
-                    ),
-                    Container(
-                      width: 2,
-                      height: isLast ? 10 : 32,
-                      color: isLast ? Colors.transparent : Colors.grey.shade300,
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              title,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: isLocked
-                                    ? Colors.grey.shade600
-                                    : PracticeUi.ink,
-                              ),
-                            ),
-                          ),
-                          PracticeStatusChip(
-                            label: statusLabel,
-                            icon: statusIcon,
-                            backgroundColor: isCompleted
-                                ? secondaryColor.withValues(alpha: 0.12)
-                                : isLocked
-                                ? Colors.white
-                                : primaryColor.withValues(alpha: 0.08),
-                            foregroundColor: isCompleted
-                                ? secondaryColor
-                                : isLocked
-                                ? Colors.grey.shade600
-                                : primaryColor,
-                            borderColor: isCompleted
-                                ? secondaryColor.withValues(alpha: 0.2)
-                                : isLocked
-                                ? Colors.grey.shade200
-                                : primaryColor.withValues(alpha: 0.16),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        description,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade700,
-                          height: 1.35,
-                        ),
-                      ),
-                      if (actionLabel != null || (isActive && onTap != null))
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12.0),
-                          child: Row(
-                            children: [
-                              Text(
-                                actionLabel ?? 'Start Practice',
-                                style: TextStyle(
-                                  color: isLocked
-                                      ? Colors.grey.shade500
-                                      : PracticeUi.gold,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Icon(
-                                Icons.chevron_right,
-                                size: 16,
-                                color: isLocked
-                                    ? Colors.grey.shade500
-                                    : primaryColor,
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+  final UserProfile profile;
+  final RitualProgressController progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Your Umrah Practice',
+          style: TextStyle(
+            color: PracticeUi.forest,
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
           ),
         ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: PracticeUi.surfaceDecoration(
+                borderRadius: PracticeUi.compactRadius,
+                borderColor: PracticeUi.line,
+                boxShadow: const [],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircleAvatar(
+                    radius: 16,
+                    backgroundColor: PracticeUi.greenSoft,
+                    child: Icon(
+                      Icons.person,
+                      size: 18,
+                      color: PracticeUi.forest,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Age ${profile.age} · ${profile.abilityLevel.label}',
+                    style: const TextStyle(
+                      color: PracticeUi.ink,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            PracticeStatusChip(
+              label: progress.mode == PracticeMode.manual
+                  ? 'Manual Mode'
+                  : 'Location-Based',
+              icon: progress.mode == PracticeMode.manual
+                  ? Icons.edit_location_alt
+                  : Icons.gps_fixed,
+              backgroundColor: PracticeUi.greenSoft,
+              borderColor: PracticeUi.forest.withValues(alpha: 0.14),
+              foregroundColor: PracticeUi.forest,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _NextStepCard extends StatelessWidget {
+  const _NextStepCard({required this.profile, required this.progress});
+
+  final UserProfile profile;
+  final RitualProgressController progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final canStartTawaf = progress.canOpenTawaf;
+    final canStartSai = progress.canOpenSai;
+    final title = progress.tawafCompleted ? 'Sa\'i' : 'Tawaf';
+    final subtitle = canStartSai || canStartTawaf
+        ? 'Ready to start'
+        : 'Complete Miqat/Niyyah first';
+    final route = progress.tawafCompleted
+        ? '/sai-simulator'
+        : '/tawaf-simulator';
+    final canOpen = progress.tawafCompleted ? canStartSai : canStartTawaf;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Next Step',
+          style: TextStyle(
+            color: PracticeUi.ink,
+            fontWeight: FontWeight.w900,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: PracticeUi.greenGradient,
+            borderRadius: PracticeUi.cardRadius,
+            boxShadow: [
+              BoxShadow(
+                color: PracticeUi.forest.withValues(alpha: 0.18),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(22),
+                child: SizedBox(
+                  width: 86,
+                  height: 86,
+                  child: Image.asset(
+                    PracticeUi.kaabahHeroAsset,
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          canOpen ? Icons.circle : Icons.lock_outline,
+                          size: 10,
+                          color: canOpen ? PracticeUi.green : PracticeUi.sand,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            subtitle,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.86),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    FilledButton(
+                      onPressed: canOpen
+                          ? () => Navigator.pushNamed(context, route)
+                          : null,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.white.withValues(
+                          alpha: 0.45,
+                        ),
+                        foregroundColor: PracticeUi.forest,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            progress.tawafCompleted
+                                ? 'Start Sa\'i'
+                                : 'Start Tawaf',
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward_rounded, size: 18),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RitualTimeline extends StatelessWidget {
+  const _RitualTimeline({required this.progress});
+
+  final RitualProgressController progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return PracticeSurfaceCard(
+      padding: const EdgeInsets.all(16),
+      borderColor: PracticeUi.line,
+      boxShadow: const [],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Ritual Timeline',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: PracticeUi.ink,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _TimelineNode(
+                label: 'Miqat /\nNiyyah',
+                icon: Icons.mosque_outlined,
+                isActive:
+                    progress.mode == PracticeMode.locationBased &&
+                    !progress.niyyahCompleted,
+                isCompleted:
+                    progress.mode == PracticeMode.manual ||
+                    progress.niyyahCompleted,
+                onTap:
+                    progress.mode == PracticeMode.locationBased &&
+                        !progress.niyyahCompleted
+                    ? progress.markNiyyahCompleted
+                    : null,
+              ),
+              const _TimelineArrow(),
+              _TimelineNode(
+                label: 'Tawaf',
+                icon: Icons.my_location,
+                isActive: progress.canOpenTawaf && !progress.tawafCompleted,
+                isCompleted: progress.tawafCompleted,
+                isLocked: !progress.canOpenTawaf,
+                onTap: progress.canOpenTawaf
+                    ? () => Navigator.pushNamed(context, '/tawaf-simulator')
+                    : null,
+              ),
+              const _TimelineArrow(),
+              _TimelineNode(
+                label: 'Sa\'i',
+                icon: Icons.directions_walk,
+                isActive: progress.canOpenSai,
+                isLocked: !progress.canOpenSai,
+                onTap: progress.canOpenSai
+                    ? () => Navigator.pushNamed(context, '/sai-simulator')
+                    : null,
+              ),
+            ],
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _TimelineNode extends StatelessWidget {
+  const _TimelineNode({
+    required this.label,
+    required this.icon,
+    this.isActive = false,
+    this.isCompleted = false,
+    this.isLocked = false,
+    this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool isActive;
+  final bool isCompleted;
+  final bool isLocked;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isCompleted || isActive
+        ? PracticeUi.deepGold
+        : isLocked
+        ? Colors.grey.shade500
+        : PracticeUi.forest;
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Column(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: isActive || isCompleted
+                    ? PracticeUi.sand
+                    : const Color(0xFFF4EFE6),
+                shape: BoxShape.circle,
+                border: Border.all(color: color.withValues(alpha: 0.18)),
+              ),
+              child: Icon(
+                isCompleted
+                    ? Icons.check_circle
+                    : (isLocked ? Icons.lock : icon),
+                color: color,
+                size: 22,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: PracticeUi.ink,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                height: 1.15,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TimelineArrow extends StatelessWidget {
+  const _TimelineArrow();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 28),
+      child: Icon(Icons.arrow_forward_rounded, color: PracticeUi.deepGold),
     );
   }
 }
@@ -350,96 +482,38 @@ class _AdaptiveSchedulingCard extends StatelessWidget {
     final isLoading =
         controller.isLoading('tawaf') || controller.isLoading('sai');
 
-    return PracticeSurfaceCard(
-      padding: const EdgeInsets.all(16),
-      backgroundColor: Colors.white,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.manage_history_rounded,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Adaptive Scheduling',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Refresh crowd advice',
-                onPressed: isLoading
-                    ? null
-                    : () {
-                        controller.loadAdvice('tawaf');
-                        controller.loadAdvice('sai');
-                      },
-                icon: const Icon(Icons.refresh, size: 18),
-              ),
-            ],
-          ),
-          if (isLoading && tawaf == null && sai == null)
-            const LinearProgressIndicator(minHeight: 2)
-          else ...[
-            if (tawaf != null) _ScheduleAdviceRow(advice: tawaf),
-            if (sai != null) _ScheduleAdviceRow(advice: sai),
-          ],
-          if (controller.errorMessage != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              controller.errorMessage!,
-              style: const TextStyle(color: Colors.red, fontSize: 12),
-            ),
-          ],
-        ],
+    return _DashboardUtilityCard(
+      icon: Icons.event_available_outlined,
+      title: 'Adaptive Scheduling',
+      subtitle: isLoading
+          ? 'Refreshing plan'
+          : tawaf?.recommendedWindow ??
+                sai?.recommendedWindow ??
+                'Personalized plan',
+      action: IconButton(
+        tooltip: 'Refresh crowd advice',
+        onPressed: isLoading
+            ? null
+            : () {
+                controller.loadAdvice('tawaf');
+                controller.loadAdvice('sai');
+              },
+        icon: const Icon(Icons.refresh, size: 18),
       ),
+      footer: controller.errorMessage ?? _adviceSummary(tawaf, sai),
     );
   }
-}
 
-class _ScheduleAdviceRow extends StatelessWidget {
-  const _ScheduleAdviceRow({required this.advice});
-
-  final AdaptiveScheduleAdvice advice;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = switch (advice.crowdLevel) {
-      CrowdLevel.low => Colors.green,
-      CrowdLevel.moderate => Colors.orange,
-      CrowdLevel.high => Colors.red,
-    };
-    final ritualLabel = advice.ritualType == 'sai' ? 'Sa\'i' : 'Tawaf';
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.circle, size: 10, color: color),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$ritualLabel: ${advice.crowdLevel.label} • ${advice.recommendedWindow}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  advice.rerouteAdvice,
-                  style: TextStyle(color: Colors.grey.shade700, height: 1.35),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  String _adviceSummary(
+    AdaptiveScheduleAdvice? tawaf,
+    AdaptiveScheduleAdvice? sai,
+  ) {
+    final parts = <String>[];
+    if (tawaf != null) parts.add('Tawaf ${tawaf.crowdLevel.label}');
+    if (sai != null) parts.add('Sa\'i ${sai.crowdLevel.label}');
+    return parts.isEmpty
+        ? 'Crowd advice loads with offline fallback.'
+        : parts.join(' · ');
   }
 }
 
@@ -450,84 +524,16 @@ class _BackgroundMonitoringCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    final isReady = controller.readiness == BackgroundGeofenceReadiness.ready;
-
-    return PracticeSurfaceCard(
-      padding: const EdgeInsets.all(16),
-      backgroundColor: isReady ? Colors.white : const Color(0xFFFFFCF2),
-      borderColor: isReady ? Colors.green.shade200 : Colors.amber.shade100,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.radar_rounded, color: primaryColor),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  'Background Geofence Readiness',
-                  style: TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-              PracticeStatusChip(
-                label: controller.isEnabled ? 'Enabled' : 'Off',
-                icon: controller.isEnabled ? Icons.toggle_on : Icons.toggle_off,
-                backgroundColor: controller.isEnabled
-                    ? primaryColor.withValues(alpha: 0.08)
-                    : Colors.white,
-                foregroundColor:
-                    controller.isEnabled ? primaryColor : Colors.grey.shade700,
-                borderColor: controller.isEnabled
-                    ? primaryColor.withValues(alpha: 0.16)
-                    : Colors.grey.shade200,
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            controller.statusMessage,
-            style: TextStyle(color: Colors.grey.shade700, height: 1.35),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              PracticeStatusChip(
-                label: isReady ? 'Ready' : 'Waiting',
-                icon: isReady ? Icons.check_circle_outline : Icons.info_outline,
-                backgroundColor:
-                    isReady ? Colors.green.shade50 : Colors.orange.shade50,
-                foregroundColor:
-                    isReady ? Colors.green.shade800 : Colors.orange.shade800,
-                borderColor:
-                    isReady ? Colors.green.shade100 : Colors.orange.shade100,
-              ),
-              const PracticeStatusChip(
-                label: 'Demo-safe',
-                icon: Icons.school_outlined,
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'This stays opt-in and ready for the demo. Full always-on native background service remains a production extension, not a Phase 4 blocker.',
-            style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: controller.isLoaded
-                  ? () => controller.setEnabled(!controller.isEnabled)
-                  : null,
-              icon: const Icon(Icons.refresh, size: 16),
-              label: Text(controller.isEnabled ? 'Turn off' : 'Turn on'),
-            ),
-          ),
-        ],
+    return _DashboardUtilityCard(
+      icon: Icons.radar_rounded,
+      title: 'Background Geofence',
+      subtitle: controller.isEnabled ? 'Readiness monitoring' : 'Off for now',
+      action: Switch(
+        value: controller.isEnabled,
+        onChanged: controller.isLoaded ? controller.setEnabled : null,
+        activeThumbColor: PracticeUi.forest,
       ),
+      footer: controller.statusMessage,
     );
   }
 }
@@ -539,46 +545,91 @@ class _ModeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return _DashboardUtilityCard(
+      icon: Icons.shield_outlined,
+      title: 'Practice Mode',
+      subtitle: progress.mode == PracticeMode.manual
+          ? 'Manual practice with guidance'
+          : 'Follow Miqat sequence',
+      footer: progress.mode.description,
+      action: PopupMenuButton<PracticeMode>(
+        tooltip: 'Change practice mode',
+        initialValue: progress.mode,
+        onSelected: progress.setMode,
+        itemBuilder: (context) => PracticeMode.values
+            .map((mode) => PopupMenuItem(value: mode, child: Text(mode.label)))
+            .toList(),
+        child: const Icon(Icons.keyboard_arrow_down_rounded),
+      ),
+    );
+  }
+}
+
+class _DashboardUtilityCard extends StatelessWidget {
+  const _DashboardUtilityCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.footer,
+    this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String footer;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
     return PracticeSurfaceCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
+      borderColor: PracticeUi.line,
+      borderRadius: PracticeUi.panelRadius,
+      boxShadow: const [],
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Expanded(
-                child: Text(
-                  'Practice Mode',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+              PracticeIconBadge(icon: icon, size: 38),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: PracticeUi.forest,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: PracticeUi.body,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              if (progress.mode == PracticeMode.locationBased)
-                TextButton.icon(
-                  onPressed: progress.resetLocationProgress,
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('Reset'),
-                ),
+              ?action,
             ],
           ),
           const SizedBox(height: 10),
-          SegmentedButton<PracticeMode>(
-            segments: PracticeMode.values
-                .map(
-                  (mode) => ButtonSegment<PracticeMode>(
-                    value: mode,
-                    label: Text(mode.label),
-                  ),
-                )
-                .toList(),
-            selected: {progress.mode},
-            onSelectionChanged: (selection) {
-              progress.setMode(selection.first);
-            },
-          ),
-          const SizedBox(height: 10),
           Text(
-            progress.mode.description,
-            style: TextStyle(color: Colors.grey.shade700, height: 1.35),
+            footer,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: PracticeUi.body,
+              fontSize: 12,
+              height: 1.35,
+            ),
           ),
         ],
       ),

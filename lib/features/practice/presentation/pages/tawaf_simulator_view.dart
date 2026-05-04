@@ -228,12 +228,12 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
                     CircleMarker(
                       point: kaabahLatLng,
                       color: geofence.status == GeofenceStatus.inside
-                          ? primaryColor.withValues(alpha: 0.1)
-                          : Colors.transparent,
+                          ? PracticeUi.green.withValues(alpha: 0.18)
+                          : Colors.red.withValues(alpha: 0.14),
                       borderStrokeWidth: 2,
                       borderColor: geofence.status == GeofenceStatus.inside
-                          ? primaryColor.withValues(alpha: 0.5)
-                          : Colors.grey.withValues(alpha: 0.4),
+                          ? PracticeUi.forest.withValues(alpha: 0.42)
+                          : Colors.red.shade700.withValues(alpha: 0.48),
                       useRadiusInMeter: true,
                       radius: geofence.radius,
                     ),
@@ -248,7 +248,7 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
                       height: 40,
                       child: const Icon(
                         Icons.location_on,
-                        color: Colors.black,
+                        color: PracticeUi.forest,
                         size: 40,
                       ),
                     ),
@@ -275,10 +275,10 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (isGpsNull) ...[
-                  _buildMapHint(
+                  const PracticeMapPill(
                     icon: Icons.location_searching,
                     label: 'GPS pending',
-                    color: const Color(0xFF9A3412),
+                    color: Color(0xFF9A3412),
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -286,13 +286,10 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
                 const SizedBox(height: 8),
                 _buildCompactProgress(context, geofence),
                 const SizedBox(height: 8),
-                const RecommendationSheetButton(
-                  ritualType: RitualType.tawaf,
-                ),
+                const RecommendationSheetButton(ritualType: RitualType.tawaf),
               ],
             ),
           ),
-          // Locate Me Button
           Positioned(
             top: 16,
             right: 16,
@@ -303,6 +300,7 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
                 }
               },
               backgroundColor: Colors.white,
+              elevation: 4,
               child: Icon(Icons.my_location, color: primaryColor),
             ),
           ),
@@ -315,30 +313,9 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
                 maxHeight: MediaQuery.of(context).size.height * 0.3,
               ),
               child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (geofence.kaabahPosition == null)
-                      ElevatedButton.icon(
-                        onPressed: () =>
-                            context.read<GeofenceProvider>().setKaabahPoint(),
-                        icon: const Icon(Icons.location_on),
-                        label: const Text('Set Kaabah Location Here'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 20,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    _buildDevOverlay(context),
-                  ],
+                child: _buildDevOverlay(
+                  context,
+                  geofence.kaabahPosition == null,
                 ),
               ),
             ),
@@ -373,55 +350,18 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
       }
     }
 
-    return _buildMapHint(icon: icon, label: message, color: textColor);
+    return PracticeMapPill(icon: icon, label: message, color: textColor);
   }
 
-  Widget _buildMapHint({
-    required IconData icon,
-    required String label,
-    required Color color,
-  }) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCompactProgress(BuildContext context, GeofenceProvider geofence) {
+  Widget _buildCompactProgress(
+    BuildContext context,
+    GeofenceProvider geofence,
+  ) {
     return PracticeSurfaceCard(
       padding: const EdgeInsets.all(12),
-      backgroundColor: Colors.white.withValues(alpha: 0.94),
+      backgroundColor: Colors.white.withValues(alpha: 0.96),
       borderRadius: PracticeUi.panelRadius,
+      borderColor: PracticeUi.line,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -442,12 +382,22 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
             ],
           ),
           const SizedBox(height: 8),
-          LinearProgressIndicator(
-            minHeight: 6,
-            borderRadius: BorderRadius.circular(999),
-            value: geofence.tawafLapCount / 7,
-            backgroundColor: Colors.grey.shade100,
-            color: Theme.of(context).colorScheme.primary,
+          Row(
+            children: List.generate(
+              7,
+              (index) => Expanded(
+                child: Container(
+                  height: 8,
+                  margin: EdgeInsets.only(right: index == 6 ? 0 : 5),
+                  decoration: BoxDecoration(
+                    color: index < geofence.tawafLapCount
+                        ? PracticeUi.forest
+                        : const Color(0xFFE4DED2),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           Row(
@@ -471,46 +421,36 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
     );
   }
 
-  Widget _buildDevOverlay(BuildContext context) {
-    return PracticeSurfaceCard(
-      padding: const EdgeInsets.all(8),
-      backgroundColor: Colors.white.withValues(alpha: 0.92),
-      borderRadius: PracticeUi.panelRadius,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'SIMULATION DEMO',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
-            ),
+  Widget _buildDevOverlay(BuildContext context, bool needsKaabahPin) {
+    return PracticeCommandBar(
+      children: [
+        if (needsKaabahPin)
+          PracticeCommandButton(
+            icon: Icons.my_location,
+            label: 'Set Kaabah Here',
+            onPressed: () => context.read<GeofenceProvider>().setKaabahPoint(),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              TextButton(
-                onPressed: () => context
-                    .read<GeofenceProvider>()
-                    .simulateStatus(GeofenceStatus.inside),
-                child: const Text('Enter', style: TextStyle(fontSize: 12)),
-              ),
-              TextButton(
-                onPressed: () => context
-                    .read<GeofenceProvider>()
-                    .simulateStatus(GeofenceStatus.outside),
-                child: const Text('Exit', style: TextStyle(fontSize: 12)),
-              ),
-              TextButton(
-                onPressed: () =>
-                    context.read<GeofenceProvider>().incrementTawafLap(),
-                child: const Text('Next', style: TextStyle(fontSize: 12)),
-              ),
-            ],
+        PracticeCommandButton(
+          icon: Icons.login_rounded,
+          label: 'Enter',
+          onPressed: () => context.read<GeofenceProvider>().simulateStatus(
+            GeofenceStatus.inside,
           ),
-        ],
-      ),
+        ),
+        PracticeCommandButton(
+          icon: Icons.logout_rounded,
+          label: 'Exit',
+          onPressed: () => context.read<GeofenceProvider>().simulateStatus(
+            GeofenceStatus.outside,
+          ),
+        ),
+        PracticeCommandButton(
+          icon: Icons.skip_next_rounded,
+          label: 'Next Round',
+          isPrimary: true,
+          onPressed: () => context.read<GeofenceProvider>().incrementTawafLap(),
+        ),
+      ],
     );
   }
 

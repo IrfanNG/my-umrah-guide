@@ -208,7 +208,7 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
                     Polyline(
                       points: [safaLatLng, marwaLatLng],
                       strokeWidth: 40.0, // Visual corridor width
-                      color: primaryColor.withValues(alpha: 0.1),
+                      color: PracticeUi.green.withValues(alpha: 0.16),
                     ),
                   ],
                 ),
@@ -218,9 +218,9 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
                     point: sai.nextTarget == HillTarget.marwa
                         ? marwaLatLng
                         : safaLatLng,
-                    color: primaryColor.withValues(alpha: 0.1),
+                    color: PracticeUi.green.withValues(alpha: 0.18),
                     borderStrokeWidth: 2,
-                    borderColor: primaryColor.withValues(alpha: 0.5),
+                    borderColor: PracticeUi.forest.withValues(alpha: 0.42),
                     useRadiusInMeter: true,
                     radius: sai.radius,
                   ),
@@ -241,7 +241,7 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        Icon(Icons.location_on, color: Colors.brown),
+                        Icon(Icons.location_on, color: PracticeUi.forest),
                       ],
                     ),
                   ),
@@ -258,7 +258,7 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        Icon(Icons.location_on, color: Colors.brown),
+                        Icon(Icons.location_on, color: PracticeUi.forest),
                       ],
                     ),
                   ),
@@ -285,15 +285,15 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (isGpsNull) ...[
-                  _buildMapHint(
+                  const PracticeMapPill(
                     icon: Icons.location_searching,
                     label: 'GPS pending',
-                    color: const Color(0xFF9A3412),
+                    color: Color(0xFF9A3412),
                   ),
                   const SizedBox(height: 8),
                 ],
                 if (_pinMode != PinMode.none) ...[
-                  _buildMapHint(
+                  PracticeMapPill(
                     icon: Icons.push_pin,
                     label:
                         'Tap map to pin ${_pinMode == PinMode.safa ? 'SAFA' : 'MARWA'}',
@@ -319,6 +319,7 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
                 }
               },
               backgroundColor: Colors.white,
+              elevation: 4,
               child: Icon(Icons.my_location, color: primaryColor),
             ),
           ),
@@ -340,59 +341,19 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
 
   Widget _buildTargetChip(BuildContext context, SaiProvider sai) {
     String target = sai.nextTarget == HillTarget.marwa ? "MARWA" : "SAFA";
-    return _buildMapHint(
+    return PracticeMapPill(
       icon: Icons.directions_walk,
       label: 'Next target: $target',
       color: PracticeUi.gold,
     );
   }
 
-  Widget _buildMapHint({
-    required IconData icon,
-    required String label,
-    required Color color,
-  }) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildCompactProgress(BuildContext context, SaiProvider sai) {
     return PracticeSurfaceCard(
       padding: const EdgeInsets.all(12),
-      backgroundColor: Colors.white.withValues(alpha: 0.94),
+      backgroundColor: Colors.white.withValues(alpha: 0.96),
       borderRadius: PracticeUi.panelRadius,
+      borderColor: PracticeUi.line,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -413,12 +374,22 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
             ],
           ),
           const SizedBox(height: 8),
-          LinearProgressIndicator(
-            minHeight: 6,
-            borderRadius: BorderRadius.circular(999),
-            value: sai.saiLapCount / 7,
-            backgroundColor: Colors.grey.shade100,
-            color: Theme.of(context).colorScheme.primary,
+          Row(
+            children: List.generate(
+              7,
+              (index) => Expanded(
+                child: Container(
+                  height: 8,
+                  margin: EdgeInsets.only(right: index == 6 ? 0 : 5),
+                  decoration: BoxDecoration(
+                    color: index < sai.saiLapCount
+                        ? PracticeUi.forest
+                        : const Color(0xFFE4DED2),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           Row(
@@ -448,56 +419,25 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
   }
 
   Widget _buildDevOverlay(BuildContext context) {
-    return PracticeSurfaceCard(
-      padding: const EdgeInsets.all(8),
-      backgroundColor: Colors.white.withValues(alpha: 0.92),
-      borderRadius: PracticeUi.panelRadius,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'SA\'I SETTINGS & SIMULATION',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: Colors.grey,
-            ),
-          ),
-          const SizedBox(height: 4),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ActionChip(
-                  label: const Text('Pin Safa', style: TextStyle(fontSize: 12)),
-                  onPressed: () => setState(() => _pinMode = PinMode.safa),
-                  backgroundColor: _pinMode == PinMode.safa
-                      ? Colors.blue.shade100
-                      : null,
-                ),
-                const SizedBox(width: 8),
-                ActionChip(
-                  label: const Text(
-                    'Pin Marwa',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  onPressed: () => setState(() => _pinMode = PinMode.marwa),
-                  backgroundColor: _pinMode == PinMode.marwa
-                      ? Colors.blue.shade100
-                      : null,
-                ),
-                const SizedBox(width: 8),
-                ActionChip(
-                  label: const Text('Reach', style: TextStyle(fontSize: 12)),
-                  onPressed: () =>
-                      context.read<SaiProvider>().simulateReachHill(),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return PracticeCommandBar(
+      children: [
+        PracticeCommandButton(
+          icon: Icons.place_outlined,
+          label: 'Pin Safa',
+          onPressed: () => setState(() => _pinMode = PinMode.safa),
+        ),
+        PracticeCommandButton(
+          icon: Icons.place_rounded,
+          label: 'Pin Marwa',
+          onPressed: () => setState(() => _pinMode = PinMode.marwa),
+        ),
+        PracticeCommandButton(
+          icon: Icons.flag_rounded,
+          label: 'Reach Target',
+          isPrimary: true,
+          onPressed: () => context.read<SaiProvider>().simulateReachHill(),
+        ),
+      ],
     );
   }
 

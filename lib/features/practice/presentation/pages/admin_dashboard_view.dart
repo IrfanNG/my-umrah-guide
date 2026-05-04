@@ -67,7 +67,11 @@ class _EmptyAnalytics extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.bar_chart_rounded, size: 64, color: PracticeUi.gold),
+                const Icon(
+                  Icons.bar_chart_rounded,
+                  size: 64,
+                  color: PracticeUi.gold,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'No analytics data yet',
@@ -105,10 +109,12 @@ class _AnalyticsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tawafCount =
-        sessions.where((s) => s.ritualType == RitualType.tawaf).length;
-    final saiCount =
-        sessions.where((s) => s.ritualType == RitualType.sai).length;
+    final tawafCount = sessions
+        .where((s) => s.ritualType == RitualType.tawaf)
+        .length;
+    final saiCount = sessions
+        .where((s) => s.ritualType == RitualType.sai)
+        .length;
     return SingleChildScrollView(
       padding: PracticeUi.pagePadding,
       child: Column(
@@ -185,8 +191,11 @@ class _AnalyticsContent extends StatelessWidget {
     final counts = <String, int>{};
     for (final session in sessions) {
       final group = key(session);
-      totals.update(group, (current) => current + value(session),
-          ifAbsent: () => value(session));
+      totals.update(
+        group,
+        (current) => current + value(session),
+        ifAbsent: () => value(session),
+      );
       counts.update(group, (current) => current + 1, ifAbsent: () => 1);
     }
     return totals.map((key, total) => MapEntry(key, total / counts[key]!));
@@ -320,29 +329,183 @@ class _ScatterPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    const left = 44.0;
+    const top = 30.0;
+    const right = 18.0;
+    const bottom = 34.0;
+    final chart = Rect.fromLTWH(
+      left,
+      top,
+      size.width - left - right,
+      size.height - top - bottom,
+    );
+
     final axisPaint = Paint()
       ..color = Colors.grey.shade300
       ..strokeWidth = 1;
-    final dotPaint = Paint()..color = const Color(0xFFD4AF37);
+    final gridPaint = Paint()
+      ..color = Colors.grey.shade200
+      ..strokeWidth = 1;
+
+    for (var i = 0; i <= 4; i++) {
+      final x = chart.left + (chart.width * i / 4);
+      final y = chart.top + (chart.height * i / 4);
+      canvas.drawLine(Offset(x, chart.top), Offset(x, chart.bottom), gridPaint);
+      canvas.drawLine(Offset(chart.left, y), Offset(chart.right, y), gridPaint);
+    }
+
     canvas.drawLine(
-      Offset(24, size.height - 18),
-      Offset(size.width - 8, size.height - 18),
+      Offset(chart.left, chart.bottom),
+      Offset(chart.right, chart.bottom),
       axisPaint,
     );
-    canvas.drawLine(const Offset(24, 8), Offset(24, size.height - 18), axisPaint);
-    if (sessions.isEmpty) return;
+    canvas.drawLine(
+      Offset(chart.left, chart.top),
+      Offset(chart.left, chart.bottom),
+      axisPaint,
+    );
+
+    if (sessions.isEmpty) {
+      _drawText(
+        canvas,
+        'No session data',
+        Offset(chart.center.dx, chart.center.dy),
+        color: PracticeUi.body,
+        fontSize: 12,
+        align: TextAlign.center,
+      );
+      return;
+    }
+
     final maxDistance = sessions
         .map((s) => s.distanceMeters)
         .reduce((a, b) => a > b ? a : b);
-    final maxPace =
-        sessions.map((s) => s.averagePaceMps).reduce((a, b) => a > b ? a : b);
+    final maxPace = sessions
+        .map((s) => s.averagePaceMps)
+        .reduce((a, b) => a > b ? a : b);
+    final safeMaxDistance = maxDistance == 0 ? 1.0 : maxDistance;
+    final safeMaxPace = maxPace == 0 ? 1.0 : maxPace;
+
+    _drawText(
+      canvas,
+      '0',
+      Offset(chart.left, chart.bottom + 8),
+      color: PracticeUi.body,
+      fontSize: 10,
+      align: TextAlign.left,
+    );
+    _drawText(
+      canvas,
+      '${(safeMaxDistance / 1000).toStringAsFixed(1)} km',
+      Offset(chart.right, chart.bottom + 8),
+      color: PracticeUi.body,
+      fontSize: 10,
+      align: TextAlign.right,
+    );
+    _drawText(
+      canvas,
+      safeMaxPace.toStringAsFixed(2),
+      Offset(chart.left - 6, chart.top - 5),
+      color: PracticeUi.body,
+      fontSize: 10,
+      align: TextAlign.right,
+    );
+    _drawText(
+      canvas,
+      'Distance (km)',
+      Offset(chart.center.dx, size.height - 14),
+      color: PracticeUi.ink,
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      align: TextAlign.center,
+    );
+    _drawText(
+      canvas,
+      'Pace (m/s)',
+      Offset(chart.left, 0),
+      color: PracticeUi.ink,
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      align: TextAlign.left,
+    );
+
     for (final session in sessions) {
-      final x = 24 +
-          ((session.distanceMeters / maxDistance) * (size.width - 40));
-      final y = (size.height - 18) -
-          ((session.averagePaceMps / maxPace) * (size.height - 32));
-      canvas.drawCircle(Offset(x, y), 4, dotPaint);
+      final x =
+          chart.left +
+          ((session.distanceMeters / safeMaxDistance) * chart.width);
+      final y =
+          chart.bottom -
+          ((session.averagePaceMps / safeMaxPace) * chart.height);
+      final point = Offset(x, y);
+      final isTawaf = session.ritualType == RitualType.tawaf;
+      final dotPaint = Paint()
+        ..color = isTawaf ? PracticeUi.deepGold : PracticeUi.forest;
+      final ringPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      canvas.drawCircle(point, 5, dotPaint);
+      canvas.drawCircle(point, 5.8, ringPaint);
     }
+
+    _drawLegend(canvas, Offset(chart.right - 104, 4));
+  }
+
+  void _drawLegend(Canvas canvas, Offset origin) {
+    _drawLegendItem(canvas, origin, PracticeUi.deepGold, 'Tawaf');
+    _drawLegendItem(
+      canvas,
+      origin + const Offset(58, 0),
+      PracticeUi.forest,
+      'Sa\'i',
+    );
+  }
+
+  void _drawLegendItem(
+    Canvas canvas,
+    Offset origin,
+    Color color,
+    String label,
+  ) {
+    canvas.drawCircle(origin + const Offset(5, 5), 4, Paint()..color = color);
+    _drawText(
+      canvas,
+      label,
+      origin + const Offset(14, -1),
+      color: PracticeUi.body,
+      fontSize: 10,
+      align: TextAlign.left,
+    );
+  }
+
+  void _drawText(
+    Canvas canvas,
+    String text,
+    Offset offset, {
+    required Color color,
+    required double fontSize,
+    TextAlign align = TextAlign.left,
+    FontWeight fontWeight = FontWeight.w500,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      textAlign: align,
+    )..layout();
+
+    final dx = switch (align) {
+      TextAlign.center => offset.dx - painter.width / 2,
+      TextAlign.right => offset.dx - painter.width,
+      _ => offset.dx,
+    };
+    painter.paint(canvas, Offset(dx, offset.dy));
   }
 
   @override

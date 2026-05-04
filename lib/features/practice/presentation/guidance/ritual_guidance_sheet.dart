@@ -10,13 +10,13 @@ class RitualGuidanceSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
         child: PracticeSurfaceCard(
           padding: const EdgeInsets.all(20),
+          backgroundColor: Colors.white,
+          borderColor: PracticeUi.line,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -35,17 +35,10 @@ class RitualGuidanceSheet extends StatelessWidget {
               const SizedBox(height: 18),
               Row(
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.menu_book_rounded,
-                      color: colorScheme.primary,
-                    ),
+                  const PracticeIconBadge(
+                    icon: Icons.menu_book_rounded,
+                    backgroundColor: PracticeUi.warmSurface,
+                    foregroundColor: PracticeUi.deepGold,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -53,9 +46,14 @@ class RitualGuidanceSheet extends StatelessWidget {
                       guidance.title,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1F2937),
+                        color: PracticeUi.ink,
                       ),
                     ),
+                  ),
+                  IconButton(
+                    tooltip: 'Close guidance',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, color: PracticeUi.body),
                   ),
                 ],
               ),
@@ -72,8 +70,8 @@ class RitualGuidanceSheet extends StatelessWidget {
                 const SizedBox(height: 14),
                 PracticeSurfaceCard(
                   padding: const EdgeInsets.all(14),
-                  backgroundColor: colorScheme.primary.withValues(alpha: 0.08),
-                  borderColor: colorScheme.primary.withValues(alpha: 0.18),
+                  backgroundColor: PracticeUi.warmSurface,
+                  borderColor: PracticeUi.line,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: const [],
                   child: Column(
@@ -84,7 +82,7 @@ class RitualGuidanceSheet extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
-                          color: colorScheme.primary,
+                          color: PracticeUi.deepGold,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -111,7 +109,7 @@ class RitualGuidanceSheet extends StatelessWidget {
                       Icon(
                         Icons.check_circle_rounded,
                         size: 18,
-                        color: colorScheme.primary,
+                        color: PracticeUi.forest,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -132,8 +130,19 @@ class RitualGuidanceSheet extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
+                  style: PracticeUi.primaryButtonStyle(
+                    backgroundColor: PracticeUi.deepGold,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Got it'),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text('Got it', textAlign: TextAlign.center),
+                      ),
+                      Icon(Icons.check_circle_outline),
+                    ],
+                  ),
                 ),
               ),
             ],

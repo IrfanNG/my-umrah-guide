@@ -73,6 +73,7 @@ void main() {
 
     final userSession = GuestSessionController();
     await userSession.load();
+    await userSession.exitGuestMode();
 
     final userController = RitualProgressController(
       guestSessionController: userSession,

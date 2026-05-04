@@ -44,7 +44,7 @@ class _RecommendationSheetButtonState extends State<RecommendationSheetButton> {
     return FilledButton.icon(
       style: FilledButton.styleFrom(
         backgroundColor: Colors.white,
-        foregroundColor: PracticeUi.ink,
+        foregroundColor: PracticeUi.forest,
         elevation: 4,
         shadowColor: Colors.black.withValues(alpha: 0.18),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -60,7 +60,7 @@ class _RecommendationSheetButtonState extends State<RecommendationSheetButton> {
               height: 14,
               child: CircularProgressIndicator(strokeWidth: 2),
             )
-          : Icon(Icons.auto_graph, size: 18, color: PracticeUi.gold),
+          : const Icon(Icons.auto_awesome, size: 18, color: PracticeUi.forest),
       label: Text(
         recommendation == null ? 'ML Suggestion' : recommendation.label,
         style: const TextStyle(fontWeight: FontWeight.w800),
@@ -179,27 +179,37 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
     }
 
     return PracticeSurfaceCard(
-      padding: const EdgeInsets.all(14),
-      backgroundColor: const Color(0xFFFFFBEB),
-      borderColor: Colors.amber.shade100,
-      borderRadius: PracticeUi.panelRadius,
+      padding: const EdgeInsets.all(18),
+      backgroundColor: Colors.white,
+      borderColor: PracticeUi.line,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.auto_graph, size: 18, color: PracticeUi.gold),
-              const SizedBox(width: 8),
-              Text(
-                '${recommendation.ritualType.label} ML Suggestion',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+              const PracticeIconBadge(
+                icon: Icons.auto_awesome,
+                backgroundColor: PracticeUi.warmSurface,
+                foregroundColor: PracticeUi.deepGold,
               ),
-              const Spacer(),
-              Text(
-                recommendation.label,
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '${recommendation.ritualType.label} ML Suggestion',
+                  style: const TextStyle(
+                    color: PracticeUi.ink,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
-              const SizedBox(width: 4),
+              PracticeStatusChip(
+                label: recommendation.label,
+                backgroundColor: PracticeUi.greenSoft,
+                foregroundColor: PracticeUi.forest,
+                borderColor: PracticeUi.forest.withValues(alpha: 0.12),
+              ),
               IconButton(
                 tooltip: 'Refresh recommendation',
                 visualDensity: VisualDensity.compact,
@@ -213,14 +223,14 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
             ],
           ),
           if (profile != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text(
               'Based on age ${profile.age}, ${profile.abilityLevel.label}'
               '${profile.healthConditions.trim().isEmpty ? '' : ', ${profile.healthConditions.trim()}'}',
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+              style: const TextStyle(color: PracticeUi.body, fontSize: 12),
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -229,32 +239,32 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
                 label: 'Distance',
                 value:
                     '${recommendation.distanceMinMeters.round()}-${recommendation.distanceMaxMeters.round()} m',
-                borderColor: Colors.amber.shade100,
+                borderColor: PracticeUi.line,
               ),
               PracticeMetricChip(
                 label: 'Pace',
                 value:
                     '${recommendation.paceMinMps.toStringAsFixed(2)}-${recommendation.paceMaxMps.toStringAsFixed(2)} m/s',
-                borderColor: Colors.amber.shade100,
+                borderColor: PracticeUi.line,
               ),
               PracticeMetricChip(
                 label: 'Time',
                 value:
                     '${recommendation.timeMinMinutes.round()}-${recommendation.timeMaxMinutes.round()} min',
-                borderColor: Colors.amber.shade100,
+                borderColor: PracticeUi.line,
               ),
               PracticeMetricChip(
                 label: 'Rest',
                 value: 'Every ${recommendation.restEveryMinutes} min',
-                borderColor: Colors.amber.shade100,
+                borderColor: PracticeUi.line,
               ),
             ],
           ),
           if (recommendation.advice.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             Text(
               recommendation.advice,
-              style: TextStyle(color: Colors.grey.shade800, height: 1.35),
+              style: const TextStyle(color: PracticeUi.ink, height: 1.4),
             ),
           ],
           if (controller.isCached(widget.ritualType) ||
@@ -267,6 +277,18 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
           ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => Navigator.of(context).pop(),
+              style: PracticeUi.primaryButtonStyle(
+                backgroundColor: PracticeUi.deepGold,
+              ),
+              icon: const Icon(Icons.thumb_up_alt_outlined),
+              label: const Text('Got it, thanks'),
+            ),
+          ),
         ],
       ),
     );
