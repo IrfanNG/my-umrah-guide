@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math' show asin, cos, sqrt;
+import 'dart:math' show asin, cos, sqrt, atan2;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -35,6 +35,11 @@ class GeofenceProvider with ChangeNotifier {
   Future<void> _tawafPersistenceQueue = Future<void>.value();
   StreamSubscription<Position>? _positionStream;
 
+  // Auto-lap tracking
+  double? _tawafZoneEntryAngle;
+  double? _previousTawafAngle;
+  bool _hasCompletedFullCircleInZone = false;
+
   Position? get currentPosition => _currentPosition;
   Position? get kaabahPosition => _kaabahPosition;
   GeofenceStatus get status => _status;
@@ -47,6 +52,8 @@ class GeofenceProvider with ChangeNotifier {
   bool get hasSavedTawafProgress => _tawafLapCount > 0 && _tawafLapCount < 7;
   bool get shouldShowTawafExitPrompt => _tawafExitPromptPending;
   RitualGuidance? get pendingGuidance => _pendingGuidance;
+  bool get isAutoLapTracking =>
+      _tawafZoneEntryAngle != null && status == GeofenceStatus.inside;
 
   // Set the reference point (Kaabah) to current user location
   Future<void> setKaabahPoint() async {
@@ -155,6 +162,21 @@ class GeofenceProvider with ChangeNotifier {
           ? GeofenceStatus.inside
           : GeofenceStatus.outside;
 
+      // Auto-lap detection: track angle around Kaabah when inside Tawaf zone
+      if (newStatus == GeofenceStatus.inside && _kaabahPosition != null) {
+        _detectTawafLapFromAngle(
+          position.latitude,
+          position.longitude,
+          _kaabahPosition!.latitude,
+          _kaabahPosition!.longitude,
+        );
+      } else if (newStatus == GeofenceStatus.outside) {
+        // Reset auto-track state when leaving zone
+        _tawafZoneEntryAngle = null;
+        _previousTawafAngle = null;
+        _hasCompletedFullCircleInZone = false;
+      }
+
       _applyGeofenceStatus(newStatus);
     }
     notifyListeners();
@@ -227,7 +249,60 @@ class GeofenceProvider with ChangeNotifier {
         unawaited(saveTawafProgress());
       }
     }
+    // Reset auto-track state after manual increment
+    _tawafZoneEntryAngle = null;
+    _previousTawafAngle = null;
+    _hasCompletedFullCircleInZone = false;
     notifyListeners();
+  }
+
+  void _detectTawafLapFromAngle(
+    double userLat,
+    double userLng,
+    double kaabahLat,
+    double kaabahLng,
+  ) {
+    if (_isTawafPaused || _isTawafCompleted || _tawafLapCount >= 7) return;
+
+    // Calculate angle in degrees (0-360) relative to Kaabah
+    // atan2 gives angle from positive x-axis, we convert to compass-style
+    double angleRad = atan2(userLng - kaabahLng, userLat - kaabahLat);
+    double angleDeg = angleRad * 180 / 3.141592653589793;
+    if (angleDeg < 0) angleDeg += 360;
+
+    // Initialize on first entry into zone
+    if (_tawafZoneEntryAngle == null) {
+      _tawafZoneEntryAngle = angleDeg;
+      _previousTawafAngle = angleDeg;
+      return;
+    }
+
+    // Detect full circle: crossing from ~300-360° to ~0-60° (clockwise around Kaabah)
+    double prev = _previousTawafAngle!;
+    double curr = angleDeg;
+
+    // Check for forward crossing (359° → 1°)
+    bool forwardCrossing = (prev > 300 && prev <= 360) && (curr >= 0 && curr < 60);
+    // Check for backward crossing as fallback (1° → 359°)
+    bool backwardCrossing = (prev >= 0 && prev < 60) && (curr > 300 && curr <= 360);
+
+    if (forwardCrossing || backwardCrossing) {
+      // Only count forward crossings (clockwise walking direction)
+      if (forwardCrossing && !_hasCompletedFullCircleInZone) {
+        incrementTawafLap();
+        _hasCompletedFullCircleInZone = true;
+      }
+      // Reset after crossing to allow next lap
+      _tawafZoneEntryAngle = angleDeg;
+    } else {
+      // Reset circle completion flag if user hasn't completed full rotation
+      double angleTraveled = (curr - _tawafZoneEntryAngle!).abs();
+      if (angleTraveled < 300) {
+        _hasCompletedFullCircleInZone = false;
+      }
+    }
+
+    _previousTawafAngle = angleDeg;
   }
 
   void consumeGuidance() {
@@ -240,6 +315,10 @@ class GeofenceProvider with ChangeNotifier {
     _isTawafPaused = false;
     _isTawafCompleted = false;
     _tawafExitPromptPending = false;
+    // Reset auto-lap tracking
+    _tawafZoneEntryAngle = null;
+    _previousTawafAngle = null;
+    _hasCompletedFullCircleInZone = false;
     unawaited(clearTawafProgress());
     notifyListeners();
   }
@@ -339,6 +418,10 @@ class GeofenceProvider with ChangeNotifier {
         _tawafExitPromptPending = true;
         unawaited(saveTawafProgress());
       }
+      // Reset auto-lap tracking when exiting zone
+      _tawafZoneEntryAngle = null;
+      _previousTawafAngle = null;
+      _hasCompletedFullCircleInZone = false;
       NotificationService().showNotification(
         id: 2,
         title: "Left Tawaf Zone",

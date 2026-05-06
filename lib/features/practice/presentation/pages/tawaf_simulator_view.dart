@@ -403,9 +403,38 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Round ${geofence.tawafLapCount} of 7',
-                style: TextStyle(color: Colors.grey.shade700),
+              Row(
+                children: [
+                  Text(
+                    'Round ${geofence.tawafLapCount} of 7',
+                    style: TextStyle(color: Colors.grey.shade700),
+                  ),
+                  if (geofence.isAutoLapTracking) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: PracticeUi.forest.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.sync, size: 12, color: PracticeUi.forest),
+                          SizedBox(width: 2),
+                          Text(
+                            'Auto',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: PracticeUi.forest,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
               Text(
                 geofence.isTawafCompleted ? 'Ready for Sa\'i' : 'Keep steady',
