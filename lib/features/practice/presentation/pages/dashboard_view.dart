@@ -82,28 +82,35 @@ class _DashboardViewState extends State<DashboardView> {
                     ];
                     if (!isWide) {
                       return Column(
-                        children: cards
-                            .map(
-                              (card) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: card,
-                              ),
-                            )
-                            .toList(),
+                        children: [
+                          ...cards.map(
+                            (card) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: card,
+                            ),
+                          ),
+                          _SessionHistoryButton(),
+                        ],
                       );
                     }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: cards
-                          .map(
-                            (card) => Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: 12),
-                                child: card,
-                              ),
-                            ),
-                          )
-                          .toList(),
+                    return Column(
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: cards
+                              .map(
+                                (card) => Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(right: 12),
+                                    child: card,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                        const SizedBox(height: 12),
+                        _SessionHistoryButton(),
+                      ],
                     );
                   },
                 ),
@@ -534,6 +541,36 @@ class _BackgroundMonitoringCard extends StatelessWidget {
         activeThumbColor: PracticeUi.forest,
       ),
       footer: controller.statusMessage,
+    );
+  }
+}
+
+class _SessionHistoryButton extends StatelessWidget {
+  const _SessionHistoryButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: () => Navigator.pushNamed(context, '/session-history'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: PracticeUi.forest,
+            side: const BorderSide(color: PracticeUi.line),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
+          icon: const Icon(Icons.history, size: 20),
+          label: const Text(
+            'View Session History',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ),
+      ),
     );
   }
 }

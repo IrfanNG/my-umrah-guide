@@ -13,9 +13,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.windows:
       case TargetPlatform.linux:
       case TargetPlatform.fuchsia:
-        throw UnsupportedError(
-          'Firebase options are configured for Web and Android only.',
-        );
+        return ios;
     }
   }
 
@@ -34,5 +32,13 @@ class DefaultFirebaseOptions {
     messagingSenderId: '724891959035',
     projectId: 'myumrahguide-nisa',
     storageBucket: 'myumrahguide-nisa.firebasestorage.app',
+  );
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyBkBRf_t_7F2MUAyoJItguo8pAxZuDMC4A',
+    appId: '1:724891959035:ios:da23c0307b156603397a5e',
+    messagingSenderId: '724891959035',
+    projectId: 'myumrahguide-nisa',
+    storageBucket: 'myumrahguide-nisa.firebasestorage.app',
+    iosBundleId: 'com.mish.myUmrahGuide',
   );
 }

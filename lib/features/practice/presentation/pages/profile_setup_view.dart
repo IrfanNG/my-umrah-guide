@@ -24,6 +24,8 @@ class ProfileSetupView extends StatefulWidget {
 class _ProfileSetupViewState extends State<ProfileSetupView> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _ageController;
+  late final TextEditingController _heightController;
+  late final TextEditingController _weightController;
   late final TextEditingController _healthController;
   AbilityLevel _abilityLevel = AbilityLevel.medium;
 
@@ -35,6 +37,12 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
           ? ''
           : widget.existingProfile?.age.toString() ?? '',
     );
+    _heightController = TextEditingController(
+      text: widget.existingProfile?.heightCm?.toString() ?? '',
+    );
+    _weightController = TextEditingController(
+      text: widget.existingProfile?.weightKg?.toString() ?? '',
+    );
     _healthController = TextEditingController(
       text: widget.existingProfile?.healthConditions ?? '',
     );
@@ -44,6 +52,8 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
   @override
   void dispose() {
     _ageController.dispose();
+    _heightController.dispose();
+    _weightController.dispose();
     _healthController.dispose();
     super.dispose();
   }
@@ -51,11 +61,15 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final age = int.parse(_ageController.text.trim());
+    final heightCm = double.parse(_heightController.text.trim());
+    final weightKg = double.parse(_weightController.text.trim());
     final profile = UserProfile(
       uid: widget.user.uid,
       email: widget.user.email ?? '',
       role: widget.existingProfile?.role ?? UserRole.user,
       age: age,
+      heightCm: heightCm,
+      weightKg: weightKg,
       abilityLevel: _abilityLevel,
       healthConditions: _healthController.text.trim(),
       createdAt: widget.existingProfile?.createdAt,
@@ -126,6 +140,46 @@ class _ProfileSetupViewState extends State<ProfileSetupView> {
                           }
                           return null;
                         },
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _heightController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Height (cm)',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (value) {
+                                final h = double.tryParse(value?.trim() ?? '');
+                                if (h == null || h < 50 || h > 250) {
+                                  return 'Enter height 50-250 cm.';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _weightController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Weight (kg)',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (value) {
+                                final w = double.tryParse(value?.trim() ?? '');
+                                if (w == null || w < 20 || w > 300) {
+                                  return 'Enter weight 20-300 kg.';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 20),
                       Text(

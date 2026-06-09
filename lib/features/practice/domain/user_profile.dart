@@ -44,6 +44,8 @@ class UserProfile {
     required this.age,
     required this.abilityLevel,
     required this.healthConditions,
+    this.heightCm,
+    this.weightKg,
     this.createdAt,
     this.updatedAt,
   });
@@ -54,10 +56,18 @@ class UserProfile {
   final int age;
   final AbilityLevel abilityLevel;
   final String healthConditions;
+  final double? heightCm;
+  final double? weightKg;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  bool get isComplete => age > 0;
+  bool get isComplete => age > 0 && heightCm != null && weightKg != null;
+
+  double? get bmi {
+    if (heightCm == null || weightKg == null || heightCm! <= 0) return null;
+    final heightM = heightCm! / 100;
+    return weightKg! / (heightM * heightM);
+  }
   String get ageGroup {
     if (age < 30) return '18-29';
     if (age < 45) return '30-44';
@@ -74,6 +84,9 @@ class UserProfile {
       'ageGroup': ageGroup,
       'abilityLevel': abilityLevel.name,
       'healthConditions': healthConditions,
+      'heightCm': heightCm,
+      'weightKg': weightKg,
+      'bmi': bmi,
       'updatedAt': FieldValue.serverTimestamp(),
       if (includeCreatedAt) 'createdAt': FieldValue.serverTimestamp(),
     };
@@ -88,6 +101,8 @@ class UserProfile {
       age: (data['age'] as num?)?.toInt() ?? 0,
       abilityLevel: AbilityLevel.fromValue(data['abilityLevel'] as String?),
       healthConditions: data['healthConditions'] as String? ?? '',
+      heightCm: (data['heightCm'] as num?)?.toDouble(),
+      weightKg: (data['weightKg'] as num?)?.toDouble(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );

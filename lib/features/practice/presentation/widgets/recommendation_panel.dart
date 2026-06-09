@@ -6,18 +6,20 @@ import '../recommendation_controller.dart';
 import 'practice_ui.dart';
 
 class RecommendationPanel extends StatefulWidget {
-  const RecommendationPanel({required this.ritualType, super.key});
+  const RecommendationPanel({required this.ritualType, this.currentRadius, super.key});
 
   final RitualType ritualType;
+  final double? currentRadius;
 
   @override
   State<RecommendationPanel> createState() => _RecommendationPanelState();
 }
 
 class RecommendationSheetButton extends StatefulWidget {
-  const RecommendationSheetButton({required this.ritualType, super.key});
+  const RecommendationSheetButton({required this.ritualType, this.currentRadius, super.key});
 
   final RitualType ritualType;
+  final double? currentRadius;
 
   @override
   State<RecommendationSheetButton> createState() =>
@@ -31,6 +33,7 @@ class _RecommendationSheetButtonState extends State<RecommendationSheetButton> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<RecommendationController>().loadRecommendation(
         widget.ritualType,
+        currentRadius: widget.currentRadius,
       );
     });
   }
@@ -83,7 +86,7 @@ class _RecommendationSheetButtonState extends State<RecommendationSheetButton> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: 180),
-              child: RecommendationPanel(ritualType: widget.ritualType),
+              child: RecommendationPanel(ritualType: widget.ritualType, currentRadius: widget.currentRadius),
             ),
           ),
         );
@@ -99,6 +102,7 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<RecommendationController>().loadRecommendation(
         widget.ritualType,
+        currentRadius: widget.currentRadius,
       );
     });
   }
@@ -168,7 +172,7 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
               child: OutlinedButton.icon(
                 onPressed: () => context
                     .read<RecommendationController>()
-                    .refreshRecommendation(widget.ritualType),
+                    .refreshRecommendation(widget.ritualType, currentRadius: widget.currentRadius),
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Refresh'),
               ),
@@ -217,7 +221,7 @@ class _RecommendationPanelState extends State<RecommendationPanel> {
                     ? null
                     : () => context
                           .read<RecommendationController>()
-                          .refreshRecommendation(widget.ritualType),
+                          .refreshRecommendation(widget.ritualType, currentRadius: widget.currentRadius),
                 icon: const Icon(Icons.refresh, size: 18),
               ),
             ],

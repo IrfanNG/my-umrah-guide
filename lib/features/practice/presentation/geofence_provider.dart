@@ -30,6 +30,7 @@ class GeofenceProvider with ChangeNotifier {
   bool _isTawafPaused = false;
   bool _isTawafCompleted = false;
   bool _tawafExitPromptPending = false;
+  DateTime? _sessionStartedAt;
   RitualGuidance? _pendingGuidance;
   final Set<String> _shownGuidanceIds = <String>{};
   Future<void> _tawafPersistenceQueue = Future<void>.value();
@@ -49,6 +50,7 @@ class GeofenceProvider with ChangeNotifier {
   int get tawafLapCount => _tawafLapCount;
   bool get isTawafPaused => _isTawafPaused;
   bool get isTawafCompleted => _isTawafCompleted;
+  DateTime? get sessionStartedAt => _sessionStartedAt;
   bool get hasSavedTawafProgress => _tawafLapCount > 0 && _tawafLapCount < 7;
   bool get shouldShowTawafExitPrompt => _tawafExitPromptPending;
   RitualGuidance? get pendingGuidance => _pendingGuidance;
@@ -232,6 +234,9 @@ class GeofenceProvider with ChangeNotifier {
       return;
     }
     if (_tawafLapCount < 7) {
+      if (_sessionStartedAt == null && _tawafLapCount == 0) {
+        _sessionStartedAt = DateTime.now();
+      }
       _tawafLapCount++;
       NotificationService().showNotification(
         id: 4,
@@ -315,6 +320,7 @@ class GeofenceProvider with ChangeNotifier {
     _isTawafPaused = false;
     _isTawafCompleted = false;
     _tawafExitPromptPending = false;
+    _sessionStartedAt = null;
     // Reset auto-lap tracking
     _tawafZoneEntryAngle = null;
     _previousTawafAngle = null;
