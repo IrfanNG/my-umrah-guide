@@ -25,6 +25,7 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
   bool _isMapReady = false;
   bool _isTawafExitDialogVisible = false;
   bool _isGuidanceSheetVisible = false;
+  GeofenceProvider? _geofenceProvider;
 
   void _animatedMapMove(LatLng destLocation, double destZoom) {
     final latTween = Tween<double>(
@@ -72,6 +73,7 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<GeofenceProvider>();
+      _geofenceProvider = provider;
       unawaited(provider.loadTawafProgress());
       unawaited(provider.startTracking());
 
@@ -85,12 +87,13 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
 
   @override
   void dispose() {
-    // Crucial: Remove listener to prevent memory leaks and crashes
-    final provider = context.read<GeofenceProvider>();
-    provider.removeListener(_onPositionUpdate);
-    provider.removeListener(_onTawafRecoveryUpdate);
-    provider.removeListener(_onGuidanceUpdate);
-    provider.removeListener(_onTawafCompletionUpdate);
+    final provider = _geofenceProvider;
+    if (provider != null) {
+      provider.removeListener(_onPositionUpdate);
+      provider.removeListener(_onTawafRecoveryUpdate);
+      provider.removeListener(_onGuidanceUpdate);
+      provider.removeListener(_onTawafCompletionUpdate);
+    }
     super.dispose();
   }
 
@@ -99,10 +102,20 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
     final geofence = context.read<GeofenceProvider>();
     if (!geofence.isTawafCompleted) return;
     unawaited(context.read<RitualProgressController>().markTawafCompleted());
+
+    final startedAt = geofence.sessionStartedAt;
+    final completedAt = DateTime.now();
+    final rawRadius = geofence.distance > 0 ? geofence.distance : 64.0;
+    final effectiveRadius = rawRadius.clamp(15.0, 75.0);
+    final tawafDistance = 7 * 2 * 3.141592653589793 * effectiveRadius;
+
     unawaited(
       context.read<RecommendationController>().logCompletionOnce(
         ritualType: RitualType.tawaf,
         completedUnits: geofence.tawafLapCount,
+        startedAt: startedAt,
+        completedAt: completedAt,
+        actualDistanceMeters: tawafDistance,
       ),
     );
   }
@@ -286,7 +299,10 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
                 const SizedBox(height: 8),
                 _buildCompactProgress(context, geofence),
                 const SizedBox(height: 8),
-                const RecommendationSheetButton(ritualType: RitualType.tawaf),
+                RecommendationSheetButton(
+                  ritualType: RitualType.tawaf,
+                  currentRadius: geofence.distance > 0 ? geofence.distance : null,
+                ),
               ],
             ),
           ),

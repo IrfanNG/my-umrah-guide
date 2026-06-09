@@ -56,7 +56,7 @@ class RecommendationController with ChangeNotifier {
     return _cachedRecommendations.contains(ritualType);
   }
 
-  Future<void> loadRecommendation(RitualType ritualType) async {
+  Future<void> loadRecommendation(RitualType ritualType, {double? currentRadius}) async {
     if (isLoading(ritualType)) return;
     final user = _auth.currentUser;
     if (user == null) return;
@@ -64,7 +64,8 @@ class RecommendationController with ChangeNotifier {
     final profile = await _profileRepository.getProfile(user.uid);
     if (profile == null || !profile.isComplete) return;
 
-    final cacheKey = _cacheKey(user.uid, profile, ritualType);
+    final cacheKey = _cacheKey(user.uid, profile, ritualType,
+        currentRadius: ritualType == RitualType.tawaf ? currentRadius : null);
     if (_recommendationKeys[ritualType] == cacheKey &&
         _recommendations.containsKey(ritualType) &&
         !isCached(ritualType)) {
@@ -91,6 +92,7 @@ class RecommendationController with ChangeNotifier {
       final recommendation = await _recommendationRepository.getRecommendation(
         profile: profile,
         ritualType: ritualType,
+        currentRadius: currentRadius,
       );
       _recommendations[ritualType] = recommendation;
       _recommendationKeys[ritualType] = cacheKey;
@@ -118,17 +120,20 @@ class RecommendationController with ChangeNotifier {
     }
   }
 
-  void refreshRecommendation(RitualType ritualType) {
+  void refreshRecommendation(RitualType ritualType, {double? currentRadius}) {
     _recommendationKeys.remove(ritualType);
     _recommendations.remove(ritualType);
     _profiles.remove(ritualType);
     notifyListeners();
-    loadRecommendation(ritualType);
+    loadRecommendation(ritualType, currentRadius: currentRadius);
   }
 
   Future<void> logCompletionOnce({
     required RitualType ritualType,
     required int completedUnits,
+    DateTime? startedAt,
+    DateTime? completedAt,
+    double? actualDistanceMeters,
   }) async {
     if (completedUnits < 7 || _loggedCompletions.contains(ritualType)) return;
     final user = _auth.currentUser;
@@ -136,24 +141,50 @@ class RecommendationController with ChangeNotifier {
 
     try {
       final profile = await _profileRepository.getProfile(user.uid);
-      final recommendation = _recommendations[ritualType];
-      if (profile == null || recommendation == null) return;
-      final distance =
-          (recommendation.distanceMinMeters +
-              recommendation.distanceMaxMeters) /
-          2;
-      final pace = (recommendation.paceMinMps + recommendation.paceMaxMps) / 2;
-      final duration =
-          (recommendation.timeMinMinutes + recommendation.timeMaxMinutes) / 2;
+      if (profile == null) return;
+
+      RitualRecommendation? recommendation = _recommendations[ritualType];
+      if (recommendation == null) {
+        try {
+          recommendation = await _recommendationRepository.getRecommendation(
+            profile: profile,
+            ritualType: ritualType,
+          );
+          _recommendations[ritualType] = recommendation;
+        } catch (_) {
+          // Recommendation not required for session logging.
+        }
+      }
+
+      final DateTime effectiveStartedAt =
+          startedAt ?? DateTime.now().subtract(const Duration(minutes: 30));
+      final DateTime effectiveCompletedAt = completedAt ?? DateTime.now();
+      final double durationSeconds =
+          effectiveCompletedAt.difference(effectiveStartedAt).inSeconds.toDouble();
+      final double durationMinutes =
+          durationSeconds <= 0 ? 1.0 : durationSeconds / 60;
+
+      final double distance = actualDistanceMeters ??
+          (recommendation != null
+              ? (recommendation.distanceMinMeters + recommendation.distanceMaxMeters) / 2
+              : 3000);
+      final double averagePaceMps = durationSeconds > 0
+          ? distance / durationSeconds
+          : (recommendation != null
+              ? (recommendation.paceMinMps + recommendation.paceMaxMps) / 2
+              : 1.0);
+
       final log = RitualSessionLog(
         uid: user.uid,
         ritualType: ritualType,
         ageGroup: profile.ageGroup,
         abilityLevel: profile.abilityLevel.name,
         distanceMeters: distance,
-        averagePaceMps: pace,
-        durationMinutes: duration,
-        recommendationSnapshot: recommendation.toJson(),
+        averagePaceMps: averagePaceMps,
+        durationMinutes: durationMinutes,
+        recommendationSnapshot: recommendation?.toJson() ?? {},
+        startedAt: effectiveStartedAt,
+        completedAt: effectiveCompletedAt,
       );
       await _logSessionOrQueue(log);
       await syncPendingWrites(notify: false);
@@ -237,7 +268,7 @@ class RecommendationController with ChangeNotifier {
     } catch (_) {
       await _offlineSyncStore.enqueueWrite(
         PendingSyncWrite(
-          id: 'session|${log.uid}|${log.ritualType.name}',
+          id: 'session|${log.uid}|${log.ritualType.name}|${log.startedAt.toIso8601String()}',
           type: PendingSyncType.ritualSession,
           payload: log.toJson(),
           queuedAt: DateTime.now(),
@@ -251,13 +282,20 @@ class RecommendationController with ChangeNotifier {
     _pendingSyncCount = await _offlineSyncStore.pendingWriteCount();
   }
 
-  String _cacheKey(String uid, UserProfile profile, RitualType ritualType) {
-    return [
+  String _cacheKey(String uid, UserProfile profile, RitualType ritualType, {double? currentRadius}) {
+    final parts = [
       uid,
       ritualType.name,
       profile.age.toString(),
       profile.abilityLevel.name,
       profile.healthConditions.trim().toLowerCase(),
-    ].join('|');
+      profile.heightCm?.toString() ?? '',
+      profile.weightKg?.toString() ?? '',
+      profile.bmi?.toStringAsFixed(1) ?? '',
+    ];
+    if (ritualType == RitualType.tawaf) {
+      parts.add(currentRadius?.toStringAsFixed(1) ?? '');
+    }
+    return parts.join('|');
   }
 }

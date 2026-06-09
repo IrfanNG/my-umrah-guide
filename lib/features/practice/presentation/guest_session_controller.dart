@@ -20,6 +20,8 @@ class GuestSessionController with ChangeNotifier {
     age: 30,
     abilityLevel: AbilityLevel.medium,
     healthConditions: '',
+    heightCm: 170,
+    weightKg: 70,
   );
 
   String get storageNamespace => _isGuestMode ? 'guest_' : 'user_';

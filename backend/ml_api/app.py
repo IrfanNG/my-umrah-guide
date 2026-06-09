@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Literal
 
@@ -18,6 +19,10 @@ class PredictionRequest(BaseModel):
     age: int = Field(ge=12, le=100)
     abilityLevel: AbilityLevel
     healthConditions: str = ""
+    heightCm: float | None = None
+    weightKg: float | None = None
+    bmi: float | None = None
+    currentRadius: float | None = None  # Tawaf distance from Kaabah
 
 
 class PredictionResponse(BaseModel):
@@ -51,6 +56,14 @@ app = FastAPI(title="MyUmrahGuide ML API")
 bundle = ModelBundle(model=RandomForestRegressor(n_estimators=180, random_state=42))
 
 
+_TAWAF_FALLBACK_RADIUS = 64.0
+_TAWAF_MIN_RADIUS = 15.0
+_TAWAF_MAX_RADIUS = 75.0
+_SAI_FIXED_DISTANCE = 3100.0
+_TAWAF_PACE_MULTIPLIER = 0.90
+_SAI_PACE_MULTIPLIER = 0.95
+
+
 def _ability_score(level: AbilityLevel) -> int:
     return {"low": 0, "medium": 1, "high": 2}[level]
 
@@ -63,15 +76,50 @@ def _has_health_condition(value: str) -> int:
     return 1 if value.strip() else 0
 
 
-def _baseline(age: int, ability: AbilityLevel, health: bool, ritual: RitualType) -> tuple[float, float, float, int]:
-    base_distance = 2800.0 if ritual == "tawaf" else 3100.0
+def _bmi_factor(bmi: float | None) -> float:
+    """BMI factor using CDC BMI categories as a screening reference.
+    https://www.cdc.gov/bmi/adult-calculator/bmi-categories.html"""
+    if bmi is None:
+        return 1.0
+    if bmi < 18.5:
+        return 0.85
+    if bmi < 25.0:
+        return 1.0
+    if bmi < 30.0:
+        return 0.92
+    if bmi < 35.0:
+        return 0.82
+    return 0.72
+
+
+def _baseline(
+    age: int,
+    ability: AbilityLevel,
+    health: bool,
+    ritual: RitualType,
+    bmi: float | None = None,
+    radius: float | None = None,
+) -> tuple[float, float, float, int]:
     age_factor = 0.68 if age >= 60 else 0.8 if age >= 45 else 1.0
     ability_factor = {"low": 0.72, "medium": 0.88, "high": 1.05}[ability]
     health_factor = 0.82 if health else 1.0
-    pace = 1.0 * age_factor * ability_factor * health_factor
-    duration = base_distance / (pace * 60)
-    rest = 8 if pace < 0.7 else 12 if pace < 0.9 else 15
-    return base_distance, pace, duration, rest
+    bmi_f = _bmi_factor(bmi)
+    body_pace = 1.0 * age_factor * ability_factor * health_factor * bmi_f
+
+    if ritual == "tawaf":
+        effective_radius = (
+            radius if radius is not None else _TAWAF_FALLBACK_RADIUS
+        )
+        effective_radius = max(_TAWAF_MIN_RADIUS, min(_TAWAF_MAX_RADIUS, effective_radius))
+        distance = 7 * 2 * math.pi * effective_radius
+        pace = body_pace * _TAWAF_PACE_MULTIPLIER
+    else:
+        distance = _SAI_FIXED_DISTANCE
+        pace = body_pace * _SAI_PACE_MULTIPLIER
+
+    duration = distance / (pace * 60)
+    rest = 8 if body_pace < 0.7 else 10 if body_pace < 0.95 else 14
+    return distance, pace, duration, rest
 
 
 def _crowd_score(hour: int, ritual: RitualType) -> float:
@@ -108,18 +156,41 @@ def _crowd_advice(ritual: RitualType, level: str) -> str:
 def _make_training_data() -> tuple[np.ndarray, np.ndarray]:
     rows: list[list[float]] = []
     targets: list[list[float]] = []
+    bmi_values = [None, 17.0, 22.0, 27.0, 32.0, 38.0]
+
     for ritual in ("tawaf", "sai"):
         for age in range(18, 86):
             for ability in ("low", "medium", "high"):
                 for health in (False, True):
-                    distance, pace, duration, rest = _baseline(age, ability, health, ritual)
-                    rows.append([
-                        float(_ritual_score(ritual)),
-                        float(age),
-                        float(_ability_score(ability)),
-                        1.0 if health else 0.0,
-                    ])
-                    targets.append([distance, pace, duration, float(rest)])
+                    for bmi in bmi_values:
+                        radius = None
+                        if ritual == "tawaf":
+                            for rad in [20.0, 40.0, 64.0]:
+                                distance, pace, duration, rest = _baseline(
+                                    age, ability, health, ritual, bmi, rad
+                                )
+                                rows.append([
+                                    float(_ritual_score(ritual)),
+                                    float(age),
+                                    float(_ability_score(ability)),
+                                    1.0 if health else 0.0,
+                                    float(bmi) if bmi is not None else 22.0,
+                                    float(rad),
+                                ])
+                                targets.append([distance, pace, duration, float(rest)])
+                        else:
+                            distance, pace, duration, rest = _baseline(
+                                age, ability, health, ritual, bmi
+                            )
+                            rows.append([
+                                float(_ritual_score(ritual)),
+                                float(age),
+                                float(_ability_score(ability)),
+                                1.0 if health else 0.0,
+                                float(bmi) if bmi is not None else 22.0,
+                                0.0,  # radius not used for sai
+                            ])
+                            targets.append([distance, pace, duration, float(rest)])
     return np.array(rows), np.array(targets)
 
 
@@ -136,11 +207,18 @@ def health() -> dict[str, str]:
 
 @app.post("/predict", response_model=PredictionResponse)
 def predict(payload: PredictionRequest) -> PredictionResponse:
+    if payload.bmi is None and payload.heightCm is not None and payload.weightKg is not None:
+        computed_bmi = payload.weightKg / ((payload.heightCm / 100) ** 2)
+    else:
+        computed_bmi = payload.bmi
+
     features = np.array([[
         float(_ritual_score(payload.ritualType)),
         float(payload.age),
         float(_ability_score(payload.abilityLevel)),
         float(_has_health_condition(payload.healthConditions)),
+        float(computed_bmi) if computed_bmi is not None else 22.0,
+        float(payload.currentRadius) if payload.currentRadius is not None else 0.0,
     ]])
     distance, pace, duration, rest = bundle.model.predict(features)[0]
     label = "Assisted pace" if pace < 0.7 else "Balanced pace" if pace < 0.95 else "Active pace"

@@ -86,6 +86,8 @@ class RitualSessionLog {
     required this.averagePaceMps,
     required this.durationMinutes,
     required this.recommendationSnapshot,
+    required this.startedAt,
+    required this.completedAt,
   });
 
   final String uid;
@@ -96,6 +98,8 @@ class RitualSessionLog {
   final double averagePaceMps;
   final double durationMinutes;
   final Map<String, dynamic> recommendationSnapshot;
+  final DateTime startedAt;
+  final DateTime completedAt;
 
   Map<String, dynamic> toJson() {
     return {
@@ -107,6 +111,8 @@ class RitualSessionLog {
       'averagePaceMps': averagePaceMps,
       'durationMinutes': durationMinutes,
       'recommendationSnapshot': recommendationSnapshot,
+      'startedAt': startedAt.toIso8601String(),
+      'completedAt': completedAt.toIso8601String(),
     };
   }
 
@@ -123,6 +129,8 @@ class RitualSessionLog {
           ? 0
           : averagePaceMps / distanceMeters,
       'recommendationSnapshot': recommendationSnapshot,
+      'startedAt': startedAt,
+      'completedAt': completedAt,
       'createdAt': FieldValue.serverTimestamp(),
     };
   }
@@ -139,6 +147,18 @@ class RitualSessionLog {
       recommendationSnapshot: Map<String, dynamic>.from(
         json['recommendationSnapshot'] as Map? ?? <String, dynamic>{},
       ),
+      startedAt: _parseDate(json['startedAt']),
+      completedAt: _parseDate(json['completedAt']),
     );
+  }
+
+  static DateTime _parseDate(dynamic value) {
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+    return DateTime.fromMillisecondsSinceEpoch(0);
   }
 }

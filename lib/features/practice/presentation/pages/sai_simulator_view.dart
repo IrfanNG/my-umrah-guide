@@ -26,6 +26,7 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
   bool _isMapReady = false;
   bool _isGuidanceSheetVisible = false;
   PinMode _pinMode = PinMode.none;
+  SaiProvider? _saiProvider;
 
   void _animatedMapMove(LatLng destLocation, double destZoom) {
     final latTween = Tween<double>(
@@ -73,6 +74,7 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<SaiProvider>();
+      _saiProvider = provider;
       provider.startTracking();
 
       // Auto-follow listener
@@ -84,21 +86,31 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
 
   @override
   void dispose() {
-    // Prevent memory leaks
-    final provider = context.read<SaiProvider>();
-    provider.removeListener(_onPositionUpdate);
-    provider.removeListener(_onGuidanceUpdate);
-    provider.removeListener(_onSaiCompletionUpdate);
+    final provider = _saiProvider;
+    if (provider != null) {
+      provider.removeListener(_onPositionUpdate);
+      provider.removeListener(_onGuidanceUpdate);
+      provider.removeListener(_onSaiCompletionUpdate);
+    }
     super.dispose();
   }
 
   void _onSaiCompletionUpdate() {
     if (!mounted) return;
     final sai = context.read<SaiProvider>();
+    if (sai.saiLapCount < 7) return;
+
+    final startedAt = sai.sessionStartedAt;
+    final completedAt = DateTime.now();
+    const saiDistance = 3100.0;
+
     unawaited(
       context.read<RecommendationController>().logCompletionOnce(
         ritualType: RitualType.sai,
         completedUnits: sai.saiLapCount,
+        startedAt: startedAt,
+        completedAt: completedAt,
+        actualDistanceMeters: saiDistance,
       ),
     );
   }

@@ -15,6 +15,7 @@ class SaiProvider with ChangeNotifier {
   int _saiLapCount = 0;
   bool _hasReachedSafaForCurrentLap = false;
   bool _hasReachedMarwaForCurrentLap = false;
+  DateTime? _sessionStartedAt;
   HillTarget _nextTarget =
       HillTarget.marwa; // Usually start at Safa, go to Marwa
   final double _radius =
@@ -27,6 +28,7 @@ class SaiProvider with ChangeNotifier {
   Position? get safaPosition => _safaPosition;
   Position? get marwaPosition => _marwaPosition;
   int get saiLapCount => _saiLapCount;
+  DateTime? get sessionStartedAt => _sessionStartedAt;
   HillTarget get nextTarget => _nextTarget;
   double get radius => _radius;
   RitualGuidance? get pendingGuidance => _pendingGuidance;
@@ -153,6 +155,10 @@ class SaiProvider with ChangeNotifier {
   void _reachHill() {
     if (_saiLapCount >= 7) return;
 
+    if (_sessionStartedAt == null && _saiLapCount == 0) {
+      _sessionStartedAt = DateTime.now();
+    }
+
     final reachedTarget = _nextTarget;
     final hillName = reachedTarget == HillTarget.marwa ? "Marwa" : "Safa";
 
@@ -205,6 +211,7 @@ class SaiProvider with ChangeNotifier {
     _saiLapCount = 0;
     _hasReachedSafaForCurrentLap = false;
     _hasReachedMarwaForCurrentLap = false;
+    _sessionStartedAt = null;
     _nextTarget = HillTarget.marwa;
     notifyListeners();
   }

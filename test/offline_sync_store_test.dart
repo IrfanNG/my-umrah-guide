@@ -63,6 +63,32 @@ void main() {
     expect(await store.pendingWriteCount(), 1);
   });
 
+  test('keeps separate queue entries for same uid+ritual with different timestamps', () async {
+    final store = OfflineSyncStore();
+
+    await store.enqueueWrite(
+      PendingSyncWrite(
+        id: 'session|user-1|tawaf|2026-06-09T10:00:00.000',
+        type: PendingSyncType.ritualSession,
+        payload: const {'ritualType': 'tawaf', 'durationMinutes': 40},
+        queuedAt: DateTime(2026, 6, 9, 10, 0, 0),
+      ),
+    );
+    await store.enqueueWrite(
+      PendingSyncWrite(
+        id: 'session|user-1|tawaf|2026-06-09T11:00:00.000',
+        type: PendingSyncType.ritualSession,
+        payload: const {'ritualType': 'tawaf', 'durationMinutes': 45},
+        queuedAt: DateTime(2026, 6, 9, 11, 0, 0),
+      ),
+    );
+
+    final pending = await store.readPendingWrites();
+
+    expect(pending, hasLength(2));
+    expect(await store.pendingWriteCount(), 2);
+  });
+
   test('removes synced pending writes by id', () async {
     final store = OfflineSyncStore();
     await store.enqueueWrite(
@@ -80,6 +106,7 @@ void main() {
   });
 
   test('serializes ritual session logs for queued analytics sync', () {
+    final now = DateTime(2026, 6, 9, 10, 0, 0);
     final log = RitualSessionLog(
       uid: 'user-1',
       ritualType: RitualType.sai,
@@ -89,6 +116,8 @@ void main() {
       averagePaceMps: 0.9,
       durationMinutes: 58,
       recommendationSnapshot: const {'label': 'Balanced pace'},
+      startedAt: now.subtract(const Duration(minutes: 58)),
+      completedAt: now,
     );
 
     final restored = RitualSessionLog.fromJson(log.toJson());
@@ -96,5 +125,7 @@ void main() {
     expect(restored.uid, 'user-1');
     expect(restored.ritualType, RitualType.sai);
     expect(restored.recommendationSnapshot['label'], 'Balanced pace');
+    expect(restored.startedAt, log.startedAt);
+    expect(restored.completedAt, log.completedAt);
   });
 }
