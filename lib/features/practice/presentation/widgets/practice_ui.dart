@@ -36,6 +36,16 @@ class PracticeUi {
 
   static const String kaabahHeroAsset = 'assets/images/kaabah_hero.png';
 
+  static String formatDistance(double? distanceMeters) {
+    if (distanceMeters == null || distanceMeters < 0) {
+      return 'Jarak belum tersedia';
+    }
+    if (distanceMeters < 1000) {
+      return '${distanceMeters.round()} m';
+    }
+    return '${(distanceMeters / 1000).toStringAsFixed(2)} km';
+  }
+
   static BoxDecoration surfaceDecoration({
     Color backgroundColor = Colors.white,
     Color borderColor = const Color(0xFFE5E7EB),

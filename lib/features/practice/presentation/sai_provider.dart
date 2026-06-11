@@ -45,6 +45,20 @@ class SaiProvider with ChangeNotifier {
     return 'Current lap: reach Safa and Marwa';
   }
 
+  double? get distanceToNextTarget {
+    if (_currentPosition == null) return null;
+    final targetPos = _nextTarget == HillTarget.marwa
+        ? _marwaPosition
+        : _safaPosition;
+    if (targetPos == null) return null;
+    return _calculateDistance(
+      _currentPosition!.latitude,
+      _currentPosition!.longitude,
+      targetPos.latitude,
+      targetPos.longitude,
+    );
+  }
+
   Future<void> setSafaPoint() async {
     if (!await PrivacyConsentController.hasAcceptedLocationConsent()) return;
 

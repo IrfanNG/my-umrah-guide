@@ -425,6 +425,23 @@ class _SaiSimulatorViewState extends State<SaiSimulatorView>
             sai.currentLapProgressLabel,
             style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
           ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.near_me, size: 14, color: Colors.grey.shade500),
+              const SizedBox(width: 6),
+              Text(
+                'Jarak ke ${
+                  sai.nextTarget == HillTarget.marwa ? "MARWA" : "SAFA"
+                }: ${PracticeUi.formatDistance(sai.distanceToNextTarget)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: PracticeUi.ink,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
