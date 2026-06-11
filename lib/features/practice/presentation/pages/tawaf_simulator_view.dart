@@ -461,6 +461,21 @@ class _TawafSimulatorViewState extends State<TawafSimulatorView>
               ),
             ],
           ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.near_me, size: 14, color: Colors.grey.shade500),
+              const SizedBox(width: 6),
+              Text(
+                'Jarak ke Kaabah: ${PracticeUi.formatDistance(geofence.distance)}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: PracticeUi.ink,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
