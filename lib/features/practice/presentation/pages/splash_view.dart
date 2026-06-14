@@ -19,7 +19,7 @@ class _SplashViewState extends State<SplashView> {
   Future<void> _navigateToLogin() async {
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) {
-      Navigator.pushReplacementNamed(context, '/login');
+      Navigator.pushReplacementNamed(context, '/');
     }
   }
 

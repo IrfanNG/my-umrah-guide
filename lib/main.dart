@@ -14,6 +14,7 @@ import 'features/practice/presentation/pages/register_view.dart';
 import 'features/practice/presentation/pages/tawaf_simulator_view.dart';
 import 'features/practice/presentation/pages/sai_simulator_view.dart';
 import 'features/practice/presentation/pages/session_history_view.dart';
+import 'features/practice/presentation/pages/splash_view.dart';
 import 'features/practice/presentation/profile_controller.dart';
 import 'features/practice/presentation/privacy_consent_controller.dart';
 import 'features/practice/presentation/recommendation_controller.dart';
@@ -112,9 +113,10 @@ class MyUmrahGuide extends StatelessWidget {
             bodyLarge: TextStyle(color: Color(0xFF4B5563)),
           ),
         ),
-        initialRoute: '/',
+        initialRoute: '/splash',
         routes: isFirebaseAvailable
             ? {
+                '/splash': (context) => const SplashView(),
                 '/': (context) => const AuthGate(),
                 '/login': (context) => const LoginGuestView(),
                 '/login-form': (context) => const LoginFormView(),
@@ -127,6 +129,7 @@ class MyUmrahGuide extends StatelessWidget {
                 '/session-history': (context) => const SessionHistoryView(),
               }
             : {
+                '/splash': (context) => const SplashView(),
                 '/': (context) => const _FirebaseUnavailableScreen(),
               },
       ),
